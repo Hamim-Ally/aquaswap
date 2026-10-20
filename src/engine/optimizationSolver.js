@@ -1,7 +1,10 @@
 // AquaSwap Mathematical Allocation Engine
-// Solves quality-constrained, inter-plant water networks using MILP principles with multi-contaminant mass balance blending
+// Solves quality-constrained, inter-plant water networks using MILP principles with multi-contaminant mass balance blending.
+// Transport model: real tanker fleet trips (capacity, fuel/km, stop fee) with utilization-based efficiency loss.
+// Economics model: water purchase price + transport + treatment vs. water value (municipal tariff avoided + discharge fine avoided).
+// Only ROI-positive routes are executed.
 
-import { TREATMENT_TECHNOLOGIES } from '../data/industrialProfiles';
+import { TREATMENT_TECHNOLOGIES, TANKER_FLEET, EXTENDED_CONTAMINANTS, BASE_PARAMS, ALL_WATER_PARAMS } from '../data/industrialProfiles.js';
 
 /**
  * Calculate geographical distance in km between two lat/lng coordinates (Haversine formula)
@@ -47,25 +50,20 @@ export function applyTreatment(effluent, treatmentTech) {
 }
 
 /**
- * Evaluate if a single stream or blended stream satisfies buyer tolerances
+ * Evaluate if a single stream or blended stream satisfies buyer tolerances.
+ * Base contaminants are always checked; extended sector parameters (HARDNESS,
+ * SILICA, IRON, COLOR, OIL) are checked only when both stream & tolerance define them.
  */
 export function checkQualityCompliance(concentration, tolerance) {
   const issues = [];
-  if (concentration.TDS > tolerance.TDS) {
-    issues.push(`TDS (${Math.round(concentration.TDS)} > max ${tolerance.TDS} mg/L)`);
-  }
-  if (concentration.COD > tolerance.COD) {
-    issues.push(`COD (${Math.round(concentration.COD)} > max ${tolerance.COD} mg/L)`);
-  }
-  if (concentration.BOD > tolerance.BOD) {
-    issues.push(`BOD (${Math.round(concentration.BOD)} > max ${tolerance.BOD} mg/L)`);
-  }
-  if (concentration.CHLORIDES > tolerance.CHLORIDES) {
-    issues.push(`Chlorides (${Math.round(concentration.CHLORIDES)} > max ${tolerance.CHLORIDES} mg/L)`);
-  }
-  if (concentration.SULFATES > tolerance.SULFATES) {
-    issues.push(`Sulfates (${Math.round(concentration.SULFATES)} > max ${tolerance.SULFATES} mg/L)`);
-  }
+
+  [...BASE_PARAMS, ...Object.keys(EXTENDED_CONTAMINANTS)].forEach((key) => {
+    if (key === 'pH') return;
+    if (concentration[key] !== undefined && tolerance[key] !== undefined && concentration[key] > tolerance[key]) {
+      issues.push(`${key.toUpperCase()} (${Math.round(concentration[key])} > max ${tolerance[key]} mg/L)`);
+    }
+  });
+
   if (tolerance.pH_min !== undefined && concentration.pH < tolerance.pH_min) {
     issues.push(`pH acidic (${concentration.pH.toFixed(1)} < min ${tolerance.pH_min})`);
   }
@@ -80,6 +78,44 @@ export function checkQualityCompliance(concentration, tolerance) {
 }
 
 /**
+ * Round-trip cost of one full truck trip over a distance
+ */
+export function truckTripCostUSD(truck, distanceKm) {
+  return 2 * truck.costPerKmUSD * distanceKm + truck.fixedCostPerTripUSD;
+}
+
+/**
+ * Cheapest transport plan for a given volume & distance across the tanker fleet.
+ * Chooses the truck with the lowest effective USD/m3 including partial-load efficiency loss:
+ * an underfilled truck still pays for the whole trip, so USD/m3 = tripCost / (fillUtilization x capacity).
+ * Returns { truck, trips, capacityM3, utilizationPct, efficiencyLossPct, costDaily, costPerM3 }
+ */
+export function selectTransport(volumeM3, distanceKm) {
+  let best = null;
+
+  TANKER_FLEET.forEach((truck) => {
+    const trips = Math.max(1, Math.ceil(volumeM3 / truck.capacityM3));
+    const tripCost = truckTripCostUSD(truck, distanceKm);
+    const tieredCost = tripCost * trips;
+    const perM3 = tieredCost / volumeM3;
+
+    if (!best || perM3 < best.costPerM3 - 1e-9 || (Math.abs(perM3 - best.costPerM3) <= 1e-9 && truck.capacityM3 > best.capacityM3)) {
+      best = {
+        truck,
+        trips,
+        capacityM3: truck.capacityM3,
+        utilizationPct: (volumeM3 / (trips * truck.capacityM3)) * 100,
+        efficiencyLossPct: 100 - (volumeM3 / (trips * truck.capacityM3)) * 100,
+        costDaily: tieredCost,
+        costPerM3: perM3
+      };
+    }
+  });
+
+  return best;
+}
+
+/**
  * Core Mathematical Allocation Engine
  * Solves the MILP/MINLP water network optimization problem:
  * Maximize: alpha * sum(S_j * x_ij) - beta * sum(c_T * d_ij * x_ij) - gamma * sum(Cost_treat) - delta * sum(y_ij)
@@ -89,6 +125,7 @@ export function checkQualityCompliance(concentration, tolerance) {
  * 3. Minimum viable exchange: x_ij >= Q_min * y_ij
  * 4. Big-M connection activation: x_ij <= M * y_ij
  * 5. Multi-contaminant bilinear mixing: sum_i (x_ij * C'_ik) <= M_jk^max * sum_i x_ij
+ * 6. ROI constraint: value(municipal tariff + discharge fine avoided) > purchase + transport + treatment
  */
 export function solveWaterNetworkOptimization(cluster, options = {}) {
   const {
@@ -103,9 +140,11 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
 
   const suppliers = cluster.suppliers || [];
   const buyers = cluster.buyers || [];
-  const cT = cluster.transportCostPerM3Km || 0.35;
   const municipalTariff = cluster.municipalWaterTariff || 1.80;
   const sewerFine = cluster.sewerDischargeFine || 0.95;
+
+  // Full value created by moving 1 m3 of water: buyer avoids city tariff, supplier avoids sewer fine
+  const valuePerM3 = municipalTariff + sewerFine;
 
   // Track remaining available capacity per supplier
   const remainingSupply = {};
@@ -120,7 +159,7 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
       buyer: b,
       demanded: b.demandD,
       totalReceived: 0,
-      streams: [], // { supplierId, flowX, treatmentId, treatedEffluent, distanceKm, costTransport, costTreatment }
+      streams: [], // { supplierId, flowX, treatmentId, treatedEffluent, distanceKm, ...economics }
       blendedConcentration: { TDS: 0, COD: 0, BOD: 0, CHLORIDES: 0, SULFATES: 0, pH: 7.0 }
     };
   });
@@ -131,7 +170,16 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
   suppliers.forEach((sup) => {
     buyers.forEach((buy) => {
       const distKm = calculateDistanceKm(sup.coords, buy.coords);
-      const transportCostPerM3 = cT * distKm;
+
+      // Cheapest possible transport option at full truck utilization (best-case benchmark)
+      let bestLoadCost = Infinity;
+      TANKER_FLEET.forEach((truck) => {
+        bestLoadCost = Math.min(bestLoadCost, truckTripCostUSD(truck, distKm) / truck.capacityM3);
+      });
+      const transportCostPerM3 = bestLoadCost;
+
+      // What the buyer pays the seller per m3 of water
+      const purchasePerM3 = sup.salePricePerM3 || 0.35 * municipalTariff;
 
       // Find the lowest cost treatment level that enables compatibility
       for (let lvl = 0; lvl <= maxTreatmentLevel; lvl++) {
@@ -139,14 +187,13 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
         const treatedEffluent = applyTreatment(sup.effluent, tech);
         const singleComp = checkQualityCompliance(treatedEffluent, buy.toleranceM);
 
-        // Economic unit costs
-        const treatCostPerM3 = tech.opexPerM3 + tech.capexPerM3Day / (365 * 3); // 3-year amortization
-        const totalUnitCost = transportCostPerM3 + treatCostPerM3;
+        // Economic unit costs (7-year capex amortization)
+        const treatCostPerM3 = tech.opexPerM3 + tech.capexPerM3Day / (365 * 7);
+        const totalUnitCost = purchasePerM3 + transportCostPerM3 + treatCostPerM3;
 
         // Scarcity-weighted net benefit per m3
-        // Displacing 1 m3 saves buyer municipal water cost and relieves stressed basin
         const scarcityScore = (buy.scarcityFactorS || cluster.watershedScarcityIndex || 0.7) * alpha;
-        const economicBenefitPerM3 = municipalTariff + sewerFine * 0.5 - totalUnitCost * (beta + gamma);
+        const economicBenefitPerM3 = valuePerM3 - totalUnitCost;
         const netPriority = scarcityScore * 10 + economicBenefitPerM3 * 5 - (singleComp.isCompliant ? 0 : 8);
 
         candidateArcs.push({
@@ -157,6 +204,7 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
           treatedEffluent,
           singleCompliant: singleComp.isCompliant,
           issues: singleComp.issues,
+          purchasePerM3,
           transportCostPerM3,
           treatCostPerM3,
           totalUnitCost,
@@ -183,13 +231,19 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
       // Proposed volume
       const proposedVolume = Math.min(availSupply, neededDemand);
 
+      // ROI gate: only execute trades whose value exceeds all-in delivered cost
+      const transportPlan = selectTransport(proposedVolume, arc.distanceKm);
+      const deliveredCostPerM3 = arc.purchasePerM3 + transportPlan.costPerM3 + arc.treatCostPerM3;
+      const marginPerM3 = valuePerM3 - deliveredCostPerM3;
+      if (marginPerM3 <= 0) return;
+
       // Check bilinear mixing constraint if this stream is added to buyer
       const currentVol = buyerState.totalReceived;
       const newVol = currentVol + proposedVolume;
 
-      // Calculate candidate blended contaminant concentrations
+      // Calculate candidate blended contaminant concentrations (base + extended sector params)
       const candidateBlended = {};
-      const contaminants = ['TDS', 'COD', 'BOD', 'CHLORIDES', 'SULFATES'];
+      const contaminants = ALL_WATER_PARAMS;
 
       contaminants.forEach((param) => {
         const currentMass = currentVol * (buyerState.blendedConcentration[param] || 0);
@@ -211,8 +265,11 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
         buyerState.totalReceived = newVol;
         buyerState.blendedConcentration = candidateBlended;
 
-        const transCost = proposedVolume * arc.transportCostPerM3;
+        const transCost = transportPlan.costDaily;
         const treatCost = proposedVolume * arc.treatCostPerM3;
+        const purchaseCost = proposedVolume * arc.purchasePerM3;
+        const revenueDaily = proposedVolume * valuePerM3;
+        const netDaily = revenueDaily - (transCost + treatCost + purchaseCost);
 
         const streamRecord = {
           supplierId: sId,
@@ -225,10 +282,27 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
           distanceKm: arc.distanceKm,
           treatmentTech: arc.treatmentTech,
           treatedEffluent: arc.treatedEffluent,
+          // Transport & fleet
+          truckId: transportPlan.truck.id,
+          truckName: transportPlan.truck.name,
+          truckCapacityM3: transportPlan.capacityM3,
+          tripsDaily: transportPlan.trips,
+          truckUtilizationPct: Math.round(transportPlan.utilizationPct),
+          transportEfficiencyLossPct: Math.max(0, Math.round(transportPlan.efficiencyLossPct)),
           transportCostDaily: Math.round(transCost * 100) / 100,
+          transportCostPerM3: Math.round(transportPlan.costPerM3 * 100) / 100,
+          tankerTrucksDaily: transportPlan.trips,
+          // Economics
+          purchasePerM3: Math.round(arc.purchasePerM3 * 100) / 100,
+          purchaseCostDaily: Math.round(purchaseCost * 100) / 100,
+          treatmentCostPerM3: Math.round(arc.treatCostPerM3 * 100) / 100,
           treatmentCostDaily: Math.round(treatCost * 100) / 100,
           totalCostDaily: Math.round((transCost + treatCost) * 100) / 100,
-          tankerTrucksDaily: Math.ceil(proposedVolume / 25)
+          deliveredCostPerM3: Math.round(deliveredCostPerM3 * 100) / 100,
+          valuePerM3: Math.round(valuePerM3 * 100) / 100,
+          revenueDaily: Math.round(revenueDaily * 100) / 100,
+          marginPerM3: Math.round(marginPerM3 * 100) / 100,
+          netDaily: Math.round(netDaily * 100) / 100
         };
 
         buyerState.streams.push(streamRecord);
@@ -241,12 +315,18 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
   let totalReusedM3Day = 0;
   let totalTransportCostDaily = 0;
   let totalTreatmentCostDaily = 0;
+  let totalPurchaseCostDaily = 0;
+  let totalTruckTripsDaily = 0;
+  let totalTruckCapacityUsed = 0;
   let totalScarcityImpact = 0;
 
   activeConnections.forEach((conn) => {
     totalReusedM3Day += conn.flowVolumeM3;
     totalTransportCostDaily += conn.transportCostDaily;
     totalTreatmentCostDaily += conn.treatmentCostDaily;
+    totalPurchaseCostDaily += conn.purchaseCostDaily;
+    totalTruckTripsDaily += conn.tripsDaily;
+    totalTruckCapacityUsed += conn.tripsDaily * conn.truckCapacityM3;
     const buyer = buyers.find((b) => b.id === conn.buyerId);
     const scarcity = buyer?.scarcityFactorS || cluster.watershedScarcityIndex || 0.7;
     totalScarcityImpact += conn.flowVolumeM3 * scarcity;
@@ -257,8 +337,14 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
   const avoidedDischargeFinesYear = totalFreshwaterDisplacedYear * sewerFine;
   const totalLogisticsCostYear = totalTransportCostDaily * 365;
   const totalTreatmentCostYear = totalTreatmentCostDaily * 365;
-  const netEconomicSurplusYear =
-    avoidedWaterPurchasesYear + avoidedDischargeFinesYear - (totalLogisticsCostYear + totalTreatmentCostYear);
+  const totalPurchaseCostYear = totalPurchaseCostDaily * 365;
+  const totalValueGeneratedYear = avoidedWaterPurchasesYear + avoidedDischargeFinesYear;
+  const totalOperatingCostYear = totalPurchaseCostYear + totalLogisticsCostYear + totalTreatmentCostYear;
+  const netEconomicSurplusYear = totalValueGeneratedYear - totalOperatingCostYear;
+  const roiPercent = totalOperatingCostYear > 0 ? (netEconomicSurplusYear / totalOperatingCostYear) * 100 : 0;
+  const fleetUtilizationPct = totalTruckCapacityUsed > 0 ? (totalReusedM3Day / totalTruckCapacityUsed) * 100 : 0;
+  const totalValueDaily = totalReusedM3Day * valuePerM3;
+  const totalNetDaily = totalValueDaily - (totalPurchaseCostDaily + totalTransportCostDaily + totalTreatmentCostDaily);
 
   // Environmental Metrics: 0.62 kWh per m3 municipal extraction from deep boreholes; 0.48 kg CO2e per kWh
   const avoidedKWhYear = totalFreshwaterDisplacedYear * 0.62;
@@ -275,9 +361,22 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
       scarcityImpactScore: Math.round(totalScarcityImpact),
       totalTransportCostDaily: Math.round(totalTransportCostDaily),
       totalTreatmentCostDaily: Math.round(totalTreatmentCostDaily),
+      totalPurchaseCostDaily: Math.round(totalPurchaseCostDaily),
+      totalValueDaily: Math.round(totalValueDaily),
+      totalNetDaily: Math.round(totalNetDaily),
+      trucksOnRoadDaily: Math.round(totalTruckTripsDaily),
+      fleetUtilizationPct: Math.round(fleetUtilizationPct),
+      fleetEfficiencyLossPct: Math.round(100 - fleetUtilizationPct),
       avoidedWaterPurchasesYear: Math.round(avoidedWaterPurchasesYear),
       avoidedDischargeFinesYear: Math.round(avoidedDischargeFinesYear),
+      totalValueGeneratedYear: Math.round(totalValueGeneratedYear),
+      totalOperatingCostYear: Math.round(totalOperatingCostYear),
       netEconomicSurplusYear: Math.round(netEconomicSurplusYear),
+      roiPercent: Math.round(roiPercent),
+      netProfitPerM3:
+        totalFreshwaterDisplacedYear > 0
+          ? Math.round((netEconomicSurplusYear / totalFreshwaterDisplacedYear) * 100) / 100
+          : 0,
       avoidedCO2TonsYear: Math.round(avoidedCO2TonsYear),
       averageTruckDistanceKm:
         activeConnections.length > 0

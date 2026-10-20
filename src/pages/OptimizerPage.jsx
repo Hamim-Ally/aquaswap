@@ -9,7 +9,6 @@ export default function OptimizerPage({
   setSolverOptions,
   optimizationResults,
   onRunOptimization,
-  isSimpleMode,
   onOpenHowItWorks,
   onOpenSavingsCalculator,
   onOpenESGCertificate,
@@ -55,7 +54,6 @@ export default function OptimizerPage({
           setSolverOptions={setSolverOptions}
           optimizationResults={optimizationResults}
           onRunOptimization={onRunOptimization}
-          isSimpleMode={isSimpleMode}
           onOpenHowItWorks={onOpenHowItWorks}
           onOpenSavingsCalculator={onOpenSavingsCalculator}
           onOpenESGCertificate={onOpenESGCertificate}

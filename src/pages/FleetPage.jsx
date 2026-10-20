@@ -1,9 +1,18 @@
 import React from 'react';
 import GISNetworkMap from '../components/GISNetworkMap';
-import { Link } from 'react-router-dom';
+import MatchScoreExplorer from '../components/MatchScoreExplorer';
+import SourcingAnalyzer from '../components/SourcingAnalyzer';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
-export default function FleetPage({ cluster, optimizationResults, isSimpleMode }) {
+export default function FleetPage({ cluster, optimizationResults, onSelectMatchForWPA, onOpenBlenderForBuyer }) {
+  const navigate = useNavigate();
+
+  const handleSelect = (match) => {
+    onSelectMatchForWPA(match);
+    navigate('/compliance');
+  };
+
   return (
     <div className="web-section" style={{ paddingTop: '32px', paddingBottom: '60px' }}>
       {/* Breadcrumb */}
@@ -39,7 +48,37 @@ export default function FleetPage({ cluster, optimizationResults, isSimpleMode }
         <GISNetworkMap
           cluster={cluster}
           optimizationResults={optimizationResults}
-          isSimpleMode={isSimpleMode}
+        />
+      </div>
+
+      <div
+        className="ui-card"
+        style={{
+          padding: '32px',
+          background: 'rgba(11, 16, 28, 0.95)',
+          border: '1px solid var(--border-glow)',
+          marginTop: '24px'
+        }}
+      >
+        <SourcingAnalyzer
+          cluster={cluster}
+          optimizationResults={optimizationResults}
+          onOpenBlenderForBuyer={onOpenBlenderForBuyer}
+        />
+      </div>
+
+      <div
+        className="ui-card"
+        style={{
+          padding: '32px',
+          background: 'rgba(11, 16, 28, 0.95)',
+          border: '1px solid var(--border-glow)',
+          marginTop: '24px'
+        }}
+      >
+        <MatchScoreExplorer
+          cluster={cluster}
+          onSelectMatchForWPA={handleSelect}
         />
       </div>
     </div>

@@ -11,7 +11,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 
-export default function ComplianceRadar({ selectedMatch, cluster, isSimpleMode }) {
+export default function ComplianceRadar({ selectedMatch, cluster }) {
   const [onlineTds, setOnlineTds] = useState(2200);
   const [onlinePh, setOnlinePh] = useState(7.8);
 
@@ -33,14 +33,12 @@ export default function ComplianceRadar({ selectedMatch, cluster, isSimpleMode }
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff' }}>
-              {isSimpleMode ? 'Emergency Safety Valves & Contract' : 'Biosecurity & Water Purchase Agreement'}
+              Emergency Safety Valves &amp; Contract
             </h1>
             <span className="status-pill status-cyan">Automated SCADA Safety</span>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '2px' }}>
-            {isSimpleMode
-              ? 'Test how automated sensors protect factories from bad water, and generate standard trade contracts.'
-              : 'Real-time telemetry threshold triggers, fail-safe diversion architecture, and legal covenants.'}
+            Test how automated sensors protect factories from bad water, and generate standard trade contracts.
           </p>
         </div>
 

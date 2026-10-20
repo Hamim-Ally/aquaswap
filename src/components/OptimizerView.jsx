@@ -29,7 +29,6 @@ export default function OptimizerView({
   setSolverOptions,
   optimizationResults,
   onRunOptimization,
-  isSimpleMode,
   onOpenHowItWorks,
   onViewMap,
   onViewBlender,
@@ -112,16 +111,14 @@ export default function OptimizerView({
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff' }}>
-              {isSimpleMode ? 'Factory Water Exchange Network' : 'Water Network Optimization'}
+              Factory Water Exchange Network
             </h1>
             <span className="status-pill status-cyan">
               {cluster.name.split(' ')[0]} Region
             </span>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '2px' }}>
-            {isSimpleMode
-              ? 'Real-time matches connecting water suppliers with buyers to save money & avoid river dumping.'
-              : `Optimal MILP superstructure allocation across ${cluster.name}`}
+            Real-time matches connecting water suppliers with buyers to save money &amp; avoid river dumping.
           </p>
         </div>
 
@@ -152,7 +149,7 @@ export default function OptimizerView({
             onClick={() => setShowSettings(!showSettings)}
           >
             <Settings2 size={15} />
-            <span>{showSettings ? 'Hide Tuning' : isSimpleMode ? 'Change Strategy' : 'Tune Weights'}</span>
+            <span>{showSettings ? 'Hide Tuning' : 'Change Strategy'}</span>
             {showSettings ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
 
@@ -331,6 +328,10 @@ export default function OptimizerView({
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
             Avoids ${Math.round(metrics.avoidedDischargeFinesYear || 0).toLocaleString()} in sewer penalty fines
           </div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+            ROI <strong style={{ color: '#34d399' }}>{metrics.roiPercent || 0}%</strong> on{' '}
+            ${Math.round(metrics.totalOperatingCostYear || 0).toLocaleString()} invested
+          </div>
         </div>
 
         {/* Active Connections */}
@@ -375,6 +376,103 @@ export default function OptimizerView({
         </div>
       </div>
 
+      {/* Transport Fleet & ROI Analysis */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '16px' }}>
+        {/* Fleet Load Efficiency */}
+        <div className="ui-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Truck size={18} color="var(--brand-cyan)" />
+              <strong style={{ fontSize: '0.95rem', color: '#fff' }}>Transport Network Efficiency</strong>
+            </div>
+            <span className="status-pill status-cyan">{metrics.trucksOnRoadDaily || 0} truck trips/day</span>
+          </div>
+
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-body)', lineHeight: 1.5 }}>
+            Trucks average <strong style={{ color: '#fff' }}>{metrics.averageTruckDistanceKm || 0} km</strong> per trip. The engine
+            picks the cheapest truck size for each route — a larger truck running half-empty loses efficiency because you pay the
+            full trip either way.
+          </div>
+
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: '5px' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Fleet load factor (how full the trucks run)</span>
+              <span className="mono" style={{ color: '#fff', fontWeight: 700 }}>
+                {metrics.fleetUtilizationPct || 0}%
+              </span>
+            </div>
+            <div style={{ height: '10px', background: 'rgba(255,255,255,0.06)', borderRadius: '6px', overflow: 'hidden' }}>
+              <div
+                style={{
+                  height: '100%',
+                  width: `${metrics.fleetUtilizationPct || 0}%`,
+                  background: 'linear-gradient(90deg, #0ea5e9, #34d399)',
+                  borderRadius: '6px'
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ fontSize: '0.78rem', lineHeight: 1.55, color: 'var(--text-muted)' }}>
+            {metrics.fleetEfficiencyLossPct > 0
+              ? `⚠️ ${metrics.fleetEfficiencyLossPct}% of truck space rolls empty — transport cost per m³ rises by that share on partial loads.`
+              : '✅ Every truck trip ships completely full — zero transport efficiency loss. 🎯'}
+          </div>
+        </div>
+
+        {/* Water ROI Ledger */}
+        <div className="ui-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <DollarSign size={18} color="#34d399" />
+              <strong style={{ fontSize: '0.95rem', color: '#fff' }}>Water ROI Ledger</strong>
+            </div>
+            <span className="status-pill status-emerald">ROI {metrics.roiPercent || 0}% / yr</span>
+          </div>
+
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            1 m³ is worth <strong style={{ color: '#38bdf8' }}>${(cluster.municipalWaterTariff + cluster.sewerDischargeFine).toFixed(2)}</strong>{' '}
+            here — city water ${cluster.municipalWaterTariff.toFixed(2)} + dumping fine ${cluster.sewerDischargeFine.toFixed(2)} avoided.
+          </div>
+
+          {[
+            { label: '➕ Water value generated', val: metrics.totalValueDaily, neg: false },
+            { label: '➖ Buying water from suppliers', val: metrics.totalPurchaseCostDaily, neg: true },
+            { label: '➖ Trucking & fuel', val: metrics.totalTransportCostDaily, neg: true },
+            { label: '➖ Treatment & cleaning', val: metrics.totalTreatmentCostDaily, neg: true }
+          ].map((row, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+              <span style={{ color: 'var(--text-body)' }}>{row.label}</span>
+              <span className="mono" style={{ color: row.neg ? '#fb7185' : '#34d399', fontWeight: 700 }}>
+                {row.neg ? '−' : '+'}${Math.abs(Math.round(row.val || 0)).toLocaleString()}/day
+              </span>
+            </div>
+          ))}
+
+          <div
+            style={{
+              borderTop: '1px solid var(--border-light)',
+              paddingTop: '10px',
+              marginTop: '2px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}
+          >
+            <span style={{ fontSize: '0.85rem', color: '#fff', fontWeight: 700 }}>Net profit</span>
+            <span className="mono" style={{ fontSize: '1.15rem', fontWeight: 800, color: '#34d399' }}>
+              +${Math.round(metrics.totalNetDaily || 0).toLocaleString()}/day
+            </span>
+          </div>
+
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+            ${Math.round(metrics.netEconomicSurplusYear || 0).toLocaleString()}/yr net on{' '}
+            ${Math.round(metrics.totalOperatingCostYear || 0).toLocaleString()}/yr invested = {metrics.roiPercent || 0}% ROI
+            (${metrics.netProfitPerM3 || 0} profit per m³). Only ROI-positive trades are executed.
+          </div>
+        </div>
+      </div>
+
       {/* Advanced Settings Drawer */}
       {showSettings && (
         <div className="ui-card" style={{ padding: '20px', background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(14, 165, 233, 0.3)' }}>
@@ -382,7 +480,7 @@ export default function OptimizerView({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Settings2 size={16} color="var(--brand-cyan)" />
               <strong style={{ fontSize: '0.9rem', color: '#fff' }}>
-                {isSimpleMode ? 'Tuning Preferences' : 'Mathematical Objective Weights'}
+                Tuning Preferences
               </strong>
             </div>
             <button
@@ -400,7 +498,7 @@ export default function OptimizerView({
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '6px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>
-                  {isSimpleMode ? 'River Scarcity Priority' : 'Alpha (Scarcity Weight)'}
+                  River Scarcity Priority
                 </span>
                 <span className="mono" style={{ color: '#fff', fontWeight: 600 }}>{solverOptions.alpha.toFixed(1)}</span>
               </div>
@@ -420,7 +518,7 @@ export default function OptimizerView({
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '6px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>
-                  {isSimpleMode ? 'Travel Distance Penalty' : 'Beta (Logistics Cost Penalty)'}
+                  Travel Distance Penalty
                 </span>
                 <span className="mono" style={{ color: '#fff', fontWeight: 600 }}>{solverOptions.beta.toFixed(1)}</span>
               </div>
@@ -440,7 +538,7 @@ export default function OptimizerView({
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '6px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>
-                  {isSimpleMode ? 'Treatment Cost Penalty' : 'Gamma (Treatment OPEX)'}
+                  Treatment Cost Penalty
                 </span>
                 <span className="mono" style={{ color: '#fff', fontWeight: 600 }}>{solverOptions.gamma.toFixed(1)}</span>
               </div>
@@ -460,7 +558,7 @@ export default function OptimizerView({
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '6px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>
-                  {isSimpleMode ? 'Min Tanker Volume' : 'qMin (m³/day threshold)'}
+                  Min Tanker Volume
                 </span>
                 <span className="mono" style={{ color: '#fff', fontWeight: 600 }}>{solverOptions.qMin} m³</span>
               </div>
@@ -550,7 +648,7 @@ export default function OptimizerView({
                 </div>
 
                 <span className="status-pill status-emerald">
-                  ${Math.round(conn.totalCostDaily * 2.8).toLocaleString()}/day savings
+                  💰 ${Math.round(conn.netDaily || 0).toLocaleString()}/day profit
                 </span>
               </div>
 
@@ -568,7 +666,7 @@ export default function OptimizerView({
                 💧 <strong>How it works:</strong> {conn.supplierName} cleans its leftover rinse water using a{' '}
                 <strong style={{ color: '#38bdf8' }}>{conn.treatmentTech.shortName}</strong> and sends{' '}
                 <strong style={{ color: '#fff' }}>{conn.flowVolumeM3} m³/day</strong> to {conn.buyerName} across a{' '}
-                <strong>{conn.distanceKm} km</strong> trip.
+                <strong>{conn.distanceKm} km</strong> trip with a <strong style={{ color: '#38bdf8' }}>{conn.truckName}</strong> ({conn.tripsDaily} trips/day).
               </div>
 
               {/* Route Metric Pills */}
@@ -588,11 +686,45 @@ export default function OptimizerView({
                 </div>
 
                 <div style={{ padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Daily Tankers</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Truck Fleet</div>
                   <div className="mono" style={{ fontSize: '0.95rem', fontWeight: 700, color: '#38bdf8', marginTop: '2px' }}>
-                    {conn.tankerTrucksDaily} trucks
+                    {conn.tripsDaily}× {conn.truckCapacityM3}m³
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '0.68rem',
+                      marginTop: '1px',
+                      color: conn.truckUtilizationPct >= 90 ? '#34d399' : conn.truckUtilizationPct >= 70 ? '#fbbf24' : '#fb7185'
+                    }}
+                  >
+                    {conn.truckUtilizationPct}% full
+                    {conn.transportEfficiencyLossPct > 0 ? ` (−${conn.transportEfficiencyLossPct}% eff.)` : ' 🎯'}
                   </div>
                 </div>
+              </div>
+
+              {/* ROI Deal Economics Line */}
+              <div
+                style={{
+                  padding: '10px 12px',
+                  background: 'rgba(16, 185, 129, 0.06)',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid rgba(16, 185, 129, 0.2)',
+                  fontSize: '0.78rem',
+                  lineHeight: 1.55,
+                  color: '#cbd5e1'
+                }}
+              >
+                💸 <strong style={{ color: '#fff' }}>Deal economics:</strong> buy water at{' '}
+                <span className="mono">${conn.purchasePerM3}</span>/m³, truck it for{' '}
+                <span className="mono">${conn.transportCostPerM3}</span>/m³
+                {conn.transportEfficiencyLossPct > 0 ? ` (incl. ${conn.transportEfficiencyLossPct}% empty-space loss)` : ''}, treat
+                at <span className="mono">${conn.treatmentCostPerM3}</span>/m³ — all-in{' '}
+                <span className="mono" style={{ color: '#fff' }}>${conn.deliveredCostPerM3}</span>/m³, worth{' '}
+                <span className="mono" style={{ color: '#38bdf8' }}>${conn.valuePerM3}</span>/m³ →{' '}
+                <span className="mono" style={{ color: '#34d399', fontWeight: 700 }}>
+                  +${conn.marginPerM3}/m³ margin
+                </span>
               </div>
             </div>
           ))}

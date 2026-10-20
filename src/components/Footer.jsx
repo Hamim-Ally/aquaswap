@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Droplets } from 'lucide-react';
+import { Droplets, CheckCircle2 } from 'lucide-react';
 
 export default function Footer({ onOpenSavingsCalculator, onOpenESGCertificate, onOpenHowItWorks }) {
   return (
@@ -42,10 +42,8 @@ export default function Footer({ onOpenSavingsCalculator, onOpenESGCertificate, 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <Link to="/optimizer" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Exchange Network</Link>
             <Link to="/blender" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Water Blender Lab</Link>
-            <Link to="/fleet" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Live Fleet Map</Link>
-            <Link to="/matchmaker" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Partner Matchmaker</Link>
-            <Link to="/compliance" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Safety & Contracts</Link>
-            <Link to="/esg" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>ESG Stewardship</Link>
+            <Link to="/fleet" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Fleet &amp; Matchmaker</Link>
+            <Link to="/compliance" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Safety &amp; ESG</Link>
           </div>
         </div>
 
@@ -72,6 +70,16 @@ export default function Footer({ onOpenSavingsCalculator, onOpenESGCertificate, 
             Implements ASTM C1602 (Concrete Mixing Specification), Bangladesh ECR 2023, and UN Sustainable Development Goals 6, 9 & 12.
           </p>
         </div>
+      </div>
+
+      {/* Compliance chip row — Bindplane-style trust badges */}
+      <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '22px' }}>
+        {['ASTM C1602', 'Bangladesh ECR 2023', 'SCADA Fail-Safe', 'CSRD Ready', 'SDG 6 · 9 · 12'].map((s) => (
+          <span key={s} className="comply-chip">
+            <CheckCircle2 size={12} color="#34d399" />
+            {s}
+          </span>
+        ))}
       </div>
 
       <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>

@@ -16,7 +16,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 
-export default function GISNetworkMap({ cluster, optimizationResults, isSimpleMode }) {
+export default function GISNetworkMap({ cluster, optimizationResults }) {
   const [selectedNode, setSelectedNode] = useState(null);
   const [filterType, setFilterType] = useState('all'); // 'all', 'suppliers', 'buyers'
   const [isFleetRunning, setIsFleetRunning] = useState(true);
@@ -55,7 +55,7 @@ export default function GISNetworkMap({ cluster, optimizationResults, isSimpleMo
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff' }}>
-              {isSimpleMode ? 'Live Tanker Fleet & Route Map' : 'Industrial Topology & Dispatch GIS Map'}
+              Live Tanker Fleet &amp; Route Map
             </h1>
             <span className="status-pill status-cyan">{cluster.region}</span>
             <span className="status-pill status-emerald">
@@ -63,9 +63,7 @@ export default function GISNetworkMap({ cluster, optimizationResults, isSimpleMo
             </span>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '2px' }}>
-            {isSimpleMode
-              ? 'Watch automated tanker trucks deliver water in real time, or click any truck to inspect its digital Bill of Lading.'
-              : `Geospatial routing, multi-tanker dispatch telemetry, and digital chain-of-custody tracking.`}
+            Watch automated tanker trucks deliver water in real time, or click any truck to inspect its digital Bill of Lading.
           </p>
         </div>
 
@@ -353,14 +351,14 @@ export default function GISNetworkMap({ cluster, optimizationResults, isSimpleMo
                 <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Distance & Delivery</div>
                   <div className="mono" style={{ fontSize: '1rem', fontWeight: 600, color: '#fff', marginTop: '2px' }}>
-                    {selectedNode.conn.distanceKm} km • {selectedNode.conn.tankerTrucksDaily} trucks/day
+                    {selectedNode.conn.distanceKm} km • {selectedNode.conn.tripsDaily}× {selectedNode.conn.truckName} ({selectedNode.conn.truckCapacityM3} m³)
                   </div>
                 </div>
 
                 <div style={{ padding: '12px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                  <div style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: 600 }}>Daily Cost Savings</div>
+                  <div style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: 600 }}>Daily Net Profit</div>
                   <div className="mono" style={{ fontSize: '1.2rem', fontWeight: 700, color: '#34d399', marginTop: '2px' }}>
-                    ${Math.round(selectedNode.conn.totalCostDaily * 2.8).toLocaleString()}/day
+                    ${Math.round(selectedNode.conn.netDaily || 0).toLocaleString()}/day
                   </div>
                 </div>
               </div>

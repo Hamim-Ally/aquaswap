@@ -3,7 +3,14 @@ import BlendingSimulator from '../components/BlendingSimulator';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
-export default function BlenderPage({ isSimpleMode, onOpenHowItWorks }) {
+export default function BlenderPage({
+  cluster,
+  focusFacilityId,
+  focusBuyerId,
+  buyerAllocations,
+  onOpenExchange,
+  onOpenHowItWorks
+}) {
   return (
     <div className="web-section" style={{ paddingTop: '32px', paddingBottom: '60px' }}>
       {/* Breadcrumb */}
@@ -37,7 +44,11 @@ export default function BlenderPage({ isSimpleMode, onOpenHowItWorks }) {
         }}
       >
         <BlendingSimulator
-          isSimpleMode={isSimpleMode}
+          cluster={cluster}
+          focusFacilityId={focusFacilityId}
+          focusBuyerId={focusBuyerId}
+          buyerAllocations={buyerAllocations}
+          onOpenExchange={onOpenExchange}
           onOpenHowItWorks={onOpenHowItWorks}
         />
       </div>

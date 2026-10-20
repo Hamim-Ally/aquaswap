@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { computeAllMatchScores } from '../engine/waterMatchScore';
 
-export default function MatchScoreExplorer({ cluster, onSelectMatchForWPA, isSimpleMode }) {
+export default function MatchScoreExplorer({ cluster, onSelectMatchForWPA }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [minScore, setMinScore] = useState(40);
   const [sectorFilter, setSectorFilter] = useState('all');
@@ -45,14 +45,12 @@ export default function MatchScoreExplorer({ cluster, onSelectMatchForWPA, isSim
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff' }}>
-              {isSimpleMode ? 'Factory Partner Matchmaker' : 'Water Match Score (AMS) Directory'}
+              Factory Partner Matchmaker
             </h1>
             <span className="status-pill status-cyan">AI B2B Matching</span>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '2px' }}>
-            {isSimpleMode
-              ? 'Ranked pairings between factories with leftover water and factories looking to buy cheap water.'
-              : 'Multi-criteria bilateral compatibility index scored against distance, treatment OPEX, and contamination risk.'}
+            Ranked pairings between factories with leftover water and factories looking to buy cheap water.
           </p>
         </div>
 

@@ -3,7 +3,7 @@
 // AMS_ij = (S_j * Q_ij * QualityCompatibility_ij) / (Distance_ij + TreatmentCost_ij + Risk_ij)
 
 import { calculateDistanceKm, applyTreatment, checkQualityCompliance } from './optimizationSolver';
-import { TREATMENT_TECHNOLOGIES } from '../data/industrialProfiles';
+import { TREATMENT_TECHNOLOGIES, BASE_PARAMS, EXTENDED_CONTAMINANTS } from '../data/industrialProfiles';
 
 /**
  * Sector risk weightings (Biosecurity, process contamination, and legal liability risk)
@@ -25,7 +25,8 @@ export function calculateQualityCompatibility(effluent, tolerance) {
   let score = 100;
 
   // Penalize based on how close or over the thresholds the effluent is
-  const params = ['TDS', 'COD', 'BOD', 'CHLORIDES', 'SULFATES'];
+  // (base params always; extended sector params only when both sides define them)
+  const params = [...BASE_PARAMS, ...Object.keys(EXTENDED_CONTAMINANTS)];
   params.forEach((p) => {
     if (effluent[p] !== undefined && tolerance[p] !== undefined) {
       const ratio = effluent[p] / tolerance[p];

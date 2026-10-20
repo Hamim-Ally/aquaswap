@@ -6,16 +6,19 @@ import {
   Building2,
   Calculator,
   Award,
-  Sparkles
+  Sparkles,
+  LogIn,
+  LogOut
 } from 'lucide-react';
 
 export default function Header({
   clusters,
   selectedCluster,
   setSelectedCluster,
+  user,
   onOpenAddModal,
-  isSimpleMode,
-  setIsSimpleMode,
+  onOpenAuth,
+  onLogout,
   onOpenHowItWorks,
   onOpenSavingsCalculator,
   onOpenESGCertificate
@@ -73,9 +76,6 @@ export default function Header({
               <span style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.025em', color: '#fff' }}>
                 AquaSwap
               </span>
-              <span className="status-pill status-cyan" style={{ fontSize: '0.68rem', padding: '2px 8px' }}>
-                {isSimpleMode ? '🌱 Easy View' : '⚙️ Pro Mode'}
-              </span>
             </div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
               Circular Industrial Water Grid
@@ -118,28 +118,14 @@ export default function Header({
             to="/fleet"
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
           >
-            Live Fleet Map
-          </NavLink>
-
-          <NavLink
-            to="/matchmaker"
-            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-          >
-            Partner Matchmaker
+            Fleet &amp; Matchmaker
           </NavLink>
 
           <NavLink
             to="/compliance"
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
           >
-            Safety & Contracts
-          </NavLink>
-
-          <NavLink
-            to="/esg"
-            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-          >
-            ESG Audit
+            Safety &amp; ESG
           </NavLink>
         </nav>
 
@@ -158,20 +144,6 @@ export default function Header({
           >
             <Calculator size={14} />
             <span>ROI Calculator</span>
-          </button>
-
-          {/* Mode Switcher */}
-          <button
-            onClick={() => setIsSimpleMode(!isSimpleMode)}
-            className="btn btn-secondary btn-sm"
-            title="Toggle between Simple and Pro views"
-            style={{ padding: '6px 10px', fontSize: '0.78rem' }}
-          >
-            {isSimpleMode ? (
-              <span style={{ color: '#34d399', fontWeight: 600 }}>Simple</span>
-            ) : (
-              <span style={{ color: '#38bdf8', fontWeight: 600 }}>Pro</span>
-            )}
           </button>
 
           {/* Cluster Switcher */}
@@ -199,6 +171,39 @@ export default function Header({
               ))}
             </select>
           </div>
+
+          {/* Auth State */}
+          {user ? (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '5px 10px',
+                background: 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                borderRadius: 'var(--radius-sm)'
+              }}
+              title={user.email}
+            >
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#34d399' }} />
+              <span style={{ fontSize: '0.76rem', color: '#cbd5e1', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user.company || user.email}
+              </span>
+              <button
+                onClick={onLogout}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: '2px', color: '#94a3b8' }}
+                title="Log out"
+              >
+                <LogOut size={14} />
+              </button>
+            </div>
+          ) : (
+            <button onClick={onOpenAuth} className="btn btn-secondary btn-sm">
+              <LogIn size={14} />
+              <span>Sign In</span>
+            </button>
+          )}
 
           {/* Onboard Facility Primary CTA */}
           <button className="btn btn-primary btn-sm" onClick={onOpenAddModal}>
