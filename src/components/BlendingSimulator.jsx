@@ -1,635 +1,1478 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   FlaskConical,
   CheckCircle2,
   AlertCircle,
-  Sparkles,
   RotateCcw,
+  Layers,
   ArrowRight,
-  DatabaseZap
+  Plus,
+  Trash2,
+  Sliders,
+  Building2,
+  Truck,
+  ShieldCheck,
+  TrendingUp,
+  DollarSign,
+  Droplets,
+  ExternalLink,
+  Compass,
+  ChevronRight
 } from 'lucide-react';
-import { END_USE_LIMITS, CONTAMINANTS, EXTENDED_CONTAMINANTS } from '../data/industrialProfiles';
 
-const PARAM_META = { ...CONTAMINANTS, ...EXTENDED_CONTAMINANTS };
-
-const RISK_LABELS = {
-  TDS: 'Total Saltiness',
-  COD: 'Organic Load',
-  BOD: 'Biodegradable Organics',
-  CHLORIDES: 'Corrosion Risk',
-  SULFATES: 'Cracking Risk',
-  HARDNESS: 'Scaling Risk',
-  SILICA: 'Silica Scale',
-  IRON: 'Staining Risk',
-  COLOR: 'Color Defects',
-  OIL: 'Film Contamination'
+// Diverse Industry Standards for Factory Quality Tolerances
+const INDUSTRY_STANDARDS = {
+  reinforced_concrete: {
+    id: 'reinforced_concrete',
+    name: 'ASTM C1602 Reinforced Concrete',
+    badge: 'Structural Buildings & Bridges',
+    limits: {
+      TDS: 50000,
+      CHLORIDES: 1000,
+      SULFATES: 3000,
+      COD: 500,
+      pH_min: 6.0,
+      pH_max: 9.0
+    },
+    description: 'Strict chloride threshold to protect steel reinforcing rebar from pitting corrosion.'
+  },
+  unreinforced_concrete: {
+    id: 'unreinforced_concrete',
+    name: 'ASTM C1602 Unreinforced Precast & Paving',
+    badge: 'Interlocking Pavers & Curb Blocks',
+    limits: {
+      TDS: 50000,
+      CHLORIDES: 4500,
+      SULFATES: 3000,
+      COD: 800,
+      pH_min: 6.0,
+      pH_max: 9.0
+    },
+    description: 'Higher chloride tolerance for mass concrete and paving elements without embedded rebar.'
+  },
+  cooling_tower: {
+    id: 'cooling_tower',
+    name: 'Industrial Cooling Tower Makeup (CTI)',
+    badge: 'Thermal Power & Central HVAC',
+    limits: {
+      TDS: 1200,
+      CHLORIDES: 350,
+      SULFATES: 400,
+      COD: 80,
+      pH_min: 6.8,
+      pH_max: 8.5
+    },
+    description: 'Low organic load and controlled salinity to prevent condenser scaling and bio-fouling.'
+  },
+  textile_rinse: {
+    id: 'textile_rinse',
+    name: 'Textile Dyeing & Wet Processing Rinse',
+    badge: 'Apparel & Fabric Washing',
+    limits: {
+      TDS: 2000,
+      CHLORIDES: 600,
+      SULFATES: 500,
+      COD: 250,
+      pH_min: 6.5,
+      pH_max: 8.0
+    },
+    description: 'Low hardness and controlled salts to preserve fabric color consistency and dye fixation.'
+  },
+  equipment_wash: {
+    id: 'equipment_wash',
+    name: 'Heavy Equipment & Quarry Washdown',
+    badge: 'Mining & Fleet Washing',
+    limits: {
+      TDS: 8000,
+      CHLORIDES: 2000,
+      SULFATES: 1800,
+      COD: 450,
+      pH_min: 6.0,
+      pH_max: 9.0
+    },
+    description: 'High tolerance utility water for chassis cleaning, dust suppression, and aggregate washing.'
+  },
+  custom: {
+    id: 'custom',
+    name: 'Custom Factory Specification',
+    badge: 'Bespoke Plant Machinery',
+    limits: {
+      TDS: 12000,
+      CHLORIDES: 1200,
+      SULFATES: 1500,
+      COD: 350,
+      pH_min: 6.5,
+      pH_max: 8.5
+    },
+    description: 'Configure bespoke water quality thresholds tailored to your specific plant machinery.'
+  }
 };
 
-const STREAM_COLORS = ['#f43f5e', '#0ea5e9', '#10b981', '#fbbf24', '#818cf8', '#38bdf8'];
-
-const DEFAULT_STREAMS = [
+// Preset options for adding new custom parameters
+const PRESET_CUSTOM_PARAMETERS = [
   {
-    id: 'stream-1',
-    name: 'Factory Brine (High Salt Wastewater)',
-    volume: 15,
-    TDS: 34000,
-    COD: 60,
-    BOD: 15,
-    CHLORIDES: 14500,
-    SULFATES: 5200,
-    HARDNESS: 2200,
-    SILICA: 180,
-    IRON: 0.8,
-    COLOR: 15,
-    OIL: 2,
-    pH: 7.6,
-    color: '#f43f5e',
-    role: 'Heavy Salt Waste'
+    id: 'turbidity',
+    name: 'Turbidity (NTU)',
+    key: 'turbidity',
+    unit: 'NTU',
+    defaultLimit: 50,
+    description: 'Water cloudiness / suspended colloidal clarity'
   },
   {
-    id: 'stream-2',
-    name: 'Textile Rinse Water (Filtered)',
-    volume: 120,
-    TDS: 1800,
-    COD: 420,
-    BOD: 120,
-    CHLORIDES: 350,
-    SULFATES: 260,
-    HARDNESS: 380,
-    SILICA: 40,
-    IRON: 1.2,
-    COLOR: 180,
-    OIL: 5,
-    pH: 8.2,
-    color: '#0ea5e9',
-    role: 'Main Recycled Base'
+    id: 'tss',
+    name: 'Total Suspended Solids (TSS)',
+    key: 'tss',
+    unit: 'mg/L',
+    defaultLimit: 100,
+    description: 'Particulate matter in suspension'
   },
   {
-    id: 'stream-3',
-    name: 'Beverage & Wash Water',
-    volume: 80,
-    TDS: 480,
-    COD: 380,
-    BOD: 95,
-    CHLORIDES: 95,
-    SULFATES: 70,
-    HARDNESS: 260,
-    SILICA: 18,
-    IRON: 0.3,
-    COLOR: 15,
-    OIL: 3,
-    pH: 6.7,
-    color: '#10b981',
-    role: 'Clean Dilution Stream'
+    id: 'hardness',
+    name: 'Total Hardness (as CaCO3)',
+    key: 'hardness',
+    unit: 'mg/L',
+    defaultLimit: 500,
+    description: 'Calcium and magnesium scaling minerals'
   },
   {
-    id: 'stream-4',
-    name: 'Fresh Groundwater (Tap)',
-    volume: 35,
-    TDS: 280,
-    COD: 10,
-    BOD: 5,
-    CHLORIDES: 45,
-    SULFATES: 30,
-    HARDNESS: 220,
-    SILICA: 25,
-    IRON: 0.15,
-    COLOR: 5,
-    OIL: 0.5,
-    pH: 7.1,
-    color: '#818cf8',
-    role: 'Pure Backup Water',
-    isFresh: true
+    id: 'iron',
+    name: 'Iron (Fe)',
+    key: 'iron',
+    unit: 'mg/L',
+    defaultLimit: 3.0,
+    description: 'Heavy metal causing staining and catalytic oxidation'
+  },
+  {
+    id: 'silica',
+    name: 'Silica (SiO2)',
+    key: 'silica',
+    unit: 'mg/L',
+    defaultLimit: 120,
+    description: 'Glass-forming mineral causing stubborn boiler scale'
   }
 ];
 
-const PRESET_FRESH_STREAM = DEFAULT_STREAMS[3];
+export default function BlendingSimulator({ cluster, optimizationResults, onOpenHowItWorks }) {
+  const navigate = useNavigate();
 
-export default function BlendingSimulator({
-  cluster,
-  focusFacilityId,
-  focusBuyerId,
-  buyerAllocations,
-  onOpenExchange,
-  onOpenHowItWorks
-}) {
-  const [endUseKey, setEndUseKey] = useState('concrete_reinforced');
-  const [streams, setStreams] = useState(DEFAULT_STREAMS);
+  // Workflow Active View Mode: 'step1' | 'step2' | 'step3'
+  const [activeWorkflowTab, setActiveWorkflowTab] = useState('step1');
 
-  const endUse = END_USE_LIMITS[endUseKey];
-  const limits = endUse.limits;
-  const checkedParams = useMemo(
-    () =>
-      Object.keys(limits).filter(
-        (k) => k !== 'pH' && k !== 'pH_min' && k !== 'pH_max'
-      ),
-    [limits]
-  );
+  // STEP 1: Target Factory / Buyer Selection
+  const buyersList = cluster?.buyers || [];
+  const suppliersList = cluster?.suppliers || [];
+  const [selectedBuyerId, setSelectedBuyerId] = useState(buyersList[0]?.id || 'buy-1');
 
-  // Auto-load the freshly registered factory's live water into the recipe
-  useEffect(() => {
-    if (focusFacilityId && cluster?.suppliers) {
-      loadLiveSnapshot();
+  // Currently evaluated target factory
+  const targetBuyer = useMemo(() => {
+    return buyersList.find((b) => b.id === selectedBuyerId) || buyersList[0] || {
+      id: 'default-buyer',
+      name: 'Crown Ready-Mix Concrete Plant #4',
+      sector: 'Structural Concrete (ASTM C1602)',
+      demandD: 550,
+      toleranceM: { TDS: 45000, COD: 500, BOD: 100, CHLORIDES: 1000, SULFATES: 3000, pH_min: 6.0, pH_max: 9.0 },
+      coords: { lat: 24.01, lng: 90.445 }
+    };
+  }, [buyersList, selectedBuyerId]);
+
+  // Industry Standard Profile state
+  const [selectedStandard, setSelectedStandard] = useState('reinforced_concrete');
+  const [customThresholds, setCustomThresholds] = useState({
+    TDS: 12000,
+    CHLORIDES: 1200,
+    SULFATES: 1500,
+    COD: 350,
+    pH_min: 6.5,
+    pH_max: 8.5
+  });
+
+  // Dynamic Custom Water Parameters
+  const [customParams, setCustomParams] = useState([
+    {
+      id: 'turbidity',
+      name: 'Turbidity',
+      key: 'turbidity',
+      unit: 'NTU',
+      limit: 50,
+      description: 'Suspended colloidal clarity'
+    },
+    {
+      id: 'tss',
+      name: 'Total Suspended Solids (TSS)',
+      key: 'tss',
+      unit: 'mg/L',
+      limit: 100,
+      description: 'Solid particulate matter in suspension'
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusFacilityId]);
+  ]);
 
-  // Auto-load a sourcing plan: this buyer's actual multi-source basket + its own recycled water + fresh top-up
+  // Modal / Form state for adding a new custom parameter
+  const [isAddParamOpen, setIsAddParamOpen] = useState(false);
+  const [newParamName, setNewParamName] = useState('');
+  const [newParamUnit, setNewParamUnit] = useState('mg/L');
+  const [newParamLimit, setNewParamLimit] = useState(150);
+
+  // Registered facility alert check from localStorage
+  const [recentRegisteredFacility, setRecentRegisteredFacility] = useState(null);
+
   useEffect(() => {
-    if (focusBuyerId && buyerAllocations?.length) {
-      loadBuyerSourceMix(focusBuyerId);
+    try {
+      const saved = localStorage.getItem('aquaswap_latest_facility');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setRecentRegisteredFacility(parsed);
+      }
+    } catch {
+      // ignore
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusBuyerId, buyerAllocations]);
+  }, []);
 
+  // Multi-stream ingredients state
+  const [streams, setStreams] = useState([
+    {
+      id: 'stream-1',
+      supplierId: 'sup-1',
+      name: 'Apex Horizon Textile Mills',
+      volume: 260,
+      TDS: 2200,
+      COD: 680,
+      CHLORIDES: 420,
+      SULFATES: 310,
+      pH: 8.4,
+      turbidity: 25,
+      tss: 45,
+      hardness: 240,
+      iron: 0.8,
+      silica: 35,
+      color: '#0284c7',
+      role: 'Primary Recycled Base'
+    },
+    {
+      id: 'stream-2',
+      supplierId: 'sup-4',
+      name: 'Pran Agro Beverage & Dairy Wash',
+      volume: 180,
+      TDS: 520,
+      COD: 920,
+      CHLORIDES: 110,
+      SULFATES: 85,
+      pH: 6.6,
+      turbidity: 15,
+      tss: 30,
+      hardness: 110,
+      iron: 0.3,
+      silica: 20,
+      color: '#16a34a',
+      role: 'Clean Dilution Stream'
+    },
+    {
+      id: 'stream-3',
+      supplierId: 'sup-3',
+      name: 'Bengal Polytex RO Brine Reject Hub',
+      volume: 40,
+      TDS: 34000,
+      COD: 80,
+      CHLORIDES: 14500,
+      SULFATES: 5200,
+      pH: 7.6,
+      turbidity: 10,
+      tss: 20,
+      hardness: 1100,
+      iron: 0.7,
+      silica: 130,
+      color: '#dc2626',
+      role: 'High-Saline Waste Stream'
+    },
+    {
+      id: 'stream-4',
+      supplierId: 'groundwater',
+      name: 'Fresh Groundwater (Tap / Borehole Backup)',
+      volume: 70,
+      TDS: 280,
+      COD: 10,
+      CHLORIDES: 45,
+      SULFATES: 30,
+      pH: 7.1,
+      turbidity: 2,
+      tss: 5,
+      hardness: 95,
+      iron: 0.1,
+      silica: 15,
+      color: '#64748b',
+      role: 'Pure Backup Water'
+    }
+  ]);
+
+  // Load recently registered factory into streams
+  const handleLoadRegisteredFactory = () => {
+    if (!recentRegisteredFacility?.facility) return;
+    const f = recentRegisteredFacility.facility;
+    const eff = f.effluent || {
+      TDS: f.toleranceM?.TDS ? Math.round(f.toleranceM.TDS * 0.7) : 2200,
+      COD: f.toleranceM?.COD ? Math.round(f.toleranceM.COD * 0.7) : 400,
+      CHLORIDES: f.toleranceM?.CHLORIDES ? Math.round(f.toleranceM.CHLORIDES * 0.7) : 450,
+      SULFATES: f.toleranceM?.SULFATES ? Math.round(f.toleranceM.SULFATES * 0.7) : 320,
+      pH: 7.5
+    };
+
+    const newStream = {
+      id: `stream-reg-${Date.now()}`,
+      supplierId: f.id,
+      name: `${f.name} (Registered Factory)`,
+      volume: Math.min(100, Math.round((f.capacityW || f.demandD || 300) * 0.4)),
+      TDS: eff.TDS,
+      COD: eff.COD,
+      CHLORIDES: eff.CHLORIDES,
+      SULFATES: eff.SULFATES,
+      pH: eff.pH || 7.5,
+      turbidity: 30,
+      tss: 50,
+      hardness: 250,
+      iron: 0.9,
+      silica: 40,
+      color: '#d97706',
+      role: 'User Registered Stream'
+    };
+
+    setStreams((prev) => [newStream, ...prev]);
+    setRecentRegisteredFacility(null);
+  };
+
+  // Determine current active limit set from target buyer
+  const activeLimits = useMemo(() => {
+    if (targetBuyer?.toleranceM) {
+      return {
+        TDS: targetBuyer.toleranceM.TDS,
+        CHLORIDES: targetBuyer.toleranceM.CHLORIDES,
+        SULFATES: targetBuyer.toleranceM.SULFATES,
+        COD: targetBuyer.toleranceM.COD,
+        pH_min: targetBuyer.toleranceM.pH_min || 6.0,
+        pH_max: targetBuyer.toleranceM.pH_max || 9.0
+      };
+    }
+    return selectedStandard === 'custom'
+      ? customThresholds
+      : INDUSTRY_STANDARDS[selectedStandard].limits;
+  }, [targetBuyer, selectedStandard, customThresholds]);
+
+  // =========================================================================
+  // STEP 2: SOURCING INTELLIGENCE & LOGISTICS EFFICIENCY ANALYSIS
+  // =========================================================================
+  const sourcingAnalysis = useMemo(() => {
+    if (!targetBuyer) return [];
+
+    const buyerLat = targetBuyer.coords?.lat || 24.01;
+    const buyerLng = targetBuyer.coords?.lng || 90.445;
+    const tariff = cluster?.municipalWaterTariff || 45.0;
+
+    return suppliersList.map((sup) => {
+      const supLat = sup.coords?.lat || 24.015;
+      const supLng = sup.coords?.lng || 90.380;
+
+      const dLat = (supLat - buyerLat) * 111;
+      const dLng = (supLng - buyerLng) * 111 * Math.cos((buyerLat * Math.PI) / 180);
+      const distKm = Number((Math.sqrt(dLat * dLat + dLng * dLng) * 1.28).toFixed(1));
+
+      let transportMode = '14 m³ Compact Bowser';
+      let costPerM3 = Number((distKm * 2.2).toFixed(1));
+
+      if (distKm <= 1.5 && sup.capacityW >= 300) {
+        transportMode = 'Dedicated HDPE Pipeline';
+        costPerM3 = 1.5;
+      } else if (distKm >= 3.5 || sup.capacityW >= 400) {
+        transportMode = '28 m³ Heavy Tanker';
+        costPerM3 = Number((distKm * 1.8).toFixed(1));
+      }
+
+      const eff = sup.effluent;
+      const fails = [];
+      if (eff.TDS > activeLimits.TDS) fails.push(`TDS (${eff.TDS} > ${activeLimits.TDS})`);
+      if (eff.CHLORIDES > activeLimits.CHLORIDES) fails.push(`Chlorides (${eff.CHLORIDES} > ${activeLimits.CHLORIDES})`);
+      if (eff.SULFATES > activeLimits.SULFATES) fails.push(`Sulfates (${eff.SULFATES} > ${activeLimits.SULFATES})`);
+      if (eff.COD > activeLimits.COD) fails.push(`COD (${eff.COD} > ${activeLimits.COD})`);
+      if (eff.pH < activeLimits.pH_min || eff.pH > activeLimits.pH_max) {
+        fails.push(`pH (${eff.pH} outside ${activeLimits.pH_min}-${activeLimits.pH_max})`);
+      }
+
+      const isDirectCompatible = fails.length === 0;
+
+      const dailyTradeVol = Math.min(sup.capacityW, targetBuyer.demandD);
+      const savingsPerM3BDT = Math.max(12, tariff - costPerM3 - 15);
+      const dailySavingsBDT = Math.round(dailyTradeVol * savingsPerM3BDT);
+
+      const distanceScore = Math.max(0, 100 - distKm * 10);
+      const chemScore = isDirectCompatible ? 100 : Math.max(30, 90 - fails.length * 20);
+      const volumeCoverageScore = Math.min(100, Math.round((sup.capacityW / targetBuyer.demandD) * 100));
+      const overallEfficiency = Math.round(chemScore * 0.45 + distanceScore * 0.35 + volumeCoverageScore * 0.2);
+
+      return {
+        supplier: sup,
+        distKm,
+        transportMode,
+        costPerM3,
+        isDirectCompatible,
+        fails,
+        dailyTradeVol,
+        dailySavingsBDT,
+        overallEfficiency,
+        capacityShare: Math.round((sup.capacityW / targetBuyer.demandD) * 100)
+      };
+    }).sort((a, b) => b.overallEfficiency - a.overallEfficiency);
+  }, [targetBuyer, suppliersList, activeLimits, cluster]);
+
+  // =========================================================================
+  // STEP 3: MULTI-FACTORY SOURCING COCKTAILS (2-3 Factory Pooling)
+  // =========================================================================
+  const multiFactoryCocktails = useMemo(() => {
+    if (!targetBuyer || suppliersList.length < 2) return [];
+
+    const demand = targetBuyer.demandD;
+
+    const s1 = suppliersList[0];
+    const s2 = suppliersList[3] || suppliersList[1];
+    const s3 = suppliersList[2];
+
+    const c1Vol1 = Math.round(demand * 0.55);
+    const c1Vol2 = Math.round(demand * 0.35);
+    const c1Vol3 = Math.round(demand * 0.10);
+
+    const sortedByDist = [...sourcingAnalysis].sort((a, b) => a.distKm - b.distKm);
+    const closest1 = sortedByDist[0]?.supplier || suppliersList[0];
+    const closest2 = sortedByDist[1]?.supplier || suppliersList[1];
+    const c2Vol1 = Math.round(demand * 0.65);
+    const c2Vol2 = Math.round(demand * 0.35);
+
+    const c3Vol1 = Math.round(demand * 0.50);
+    const c3Vol2 = Math.round(demand * 0.40);
+    const c3VolBackup = Math.round(demand * 0.10);
+
+    return [
+      {
+        id: 'cocktail-triple-eco',
+        title: '3-Factory Balanced Sourcing (100% Recycled)',
+        badge: 'Zero Groundwater Tap',
+        description: 'Combines 3 local factories to completely eliminate fresh groundwater use and balance salinity with rinse water.',
+        sources: [
+          { supplier: s1, volume: c1Vol1, share: 55, role: 'Base Recycled Stream' },
+          { supplier: s2, volume: c1Vol2, share: 35, role: 'Low-Salinity Dilution' },
+          { supplier: s3, volume: c1Vol3, share: 10, role: 'Saline Buffer' }
+        ],
+        groundwaterNeeded: 0,
+        totalVolume: demand,
+        dailySavingsBDT: Math.round(demand * (cluster?.municipalWaterTariff || 45) * 0.62),
+        efficiencyScore: 96
+      },
+      {
+        id: 'cocktail-dual-proximity',
+        title: 'Dual-Source Proximity (Shortest Fleet Haul)',
+        badge: 'Minimum Distance',
+        description: 'Pumps and hauls from the 2 closest neighboring factories within 2.5 km to minimize transit time and traffic.',
+        sources: [
+          { supplier: closest1, volume: c2Vol1, share: 65, role: 'Anchor Supplier' },
+          { supplier: closest2, volume: c2Vol2, share: 35, role: 'Adjacent Secondary' }
+        ],
+        groundwaterNeeded: 0,
+        totalVolume: demand,
+        dailySavingsBDT: Math.round(demand * (cluster?.municipalWaterTariff || 45) * 0.58),
+        efficiencyScore: 92
+      },
+      {
+        id: 'cocktail-max-margin',
+        title: 'Cost-Optimized Dual-Source + Deep Well Backup',
+        badge: 'Maximum Cost Cut',
+        description: 'Takes 90% water from the 2 lowest-cost effluent sources and maintains 10% pure tap backup.',
+        sources: [
+          { supplier: s1, volume: c3Vol1, share: 50, role: 'Bulk Effluent' },
+          { supplier: s2, volume: c3Vol2, share: 40, role: 'Organic Rinse' }
+        ],
+        groundwaterNeeded: c3VolBackup,
+        totalVolume: demand,
+        dailySavingsBDT: Math.round(demand * 0.9 * (cluster?.municipalWaterTariff || 45) * 0.65),
+        efficiencyScore: 89
+      }
+    ];
+  }, [targetBuyer, suppliersList, sourcingAnalysis]);
+
+  // Load a Multi-Factory Cocktail into the Active Blending Simulator Streams
+  const handleLoadCocktail = (cocktail) => {
+    const newStreams = cocktail.sources.map((src, i) => {
+      const colors = ['#0284c7', '#16a34a', '#dc2626', '#475569'];
+      const eff = src.supplier.effluent;
+      return {
+        id: `stream-cocktail-${i}`,
+        supplierId: src.supplier.id,
+        name: src.supplier.name,
+        volume: src.volume,
+        TDS: eff.TDS,
+        COD: eff.COD,
+        CHLORIDES: eff.CHLORIDES,
+        SULFATES: eff.SULFATES,
+        pH: eff.pH,
+        turbidity: 20 + i * 10,
+        tss: 30 + i * 15,
+        hardness: 200 + i * 50,
+        iron: 0.5 + i * 0.2,
+        silica: 30 + i * 15,
+        color: colors[i % colors.length],
+        role: src.role
+      };
+    });
+
+    if (cocktail.groundwaterNeeded > 0) {
+      newStreams.push({
+        id: 'stream-groundwater-backup',
+        supplierId: 'groundwater',
+        name: 'Fresh Groundwater (Tap / Borehole Backup)',
+        volume: cocktail.groundwaterNeeded,
+        TDS: 280,
+        COD: 10,
+        CHLORIDES: 45,
+        SULFATES: 30,
+        pH: 7.1,
+        turbidity: 2,
+        tss: 5,
+        hardness: 95,
+        iron: 0.1,
+        silica: 15,
+        color: '#64748b',
+        role: 'Pure Backup Water'
+      });
+    }
+
+    setStreams(newStreams);
+    setActiveWorkflowTab('step3');
+  };
+
+  // Mass Balance Blending Engine
   const totalVolume = streams.reduce((acc, s) => acc + s.volume, 0);
 
   const blended = useMemo(() => {
-    const mix = { pH: 7.0 };
+    const res = { TDS: 0, COD: 0, CHLORIDES: 0, SULFATES: 0, pH: 7.0 };
+
+    ['TDS', 'COD', 'CHLORIDES', 'SULFATES'].forEach((param) => {
+      const totalMass = streams.reduce((acc, s) => acc + s.volume * (s[param] || 0), 0);
+      res[param] = totalVolume > 0 ? Math.round(totalMass / totalVolume) : 0;
+    });
+
     if (totalVolume > 0) {
-      checkedParams.forEach((param) => {
-        const totalMass = streams.reduce((acc, s) => acc + s.volume * (s[param] || 0), 0);
-        mix[param] = Math.round((totalMass / totalVolume) * 10) / 10;
-      });
-      const totalH = streams.reduce((acc, s) => acc + s.volume * Math.pow(10, -(s.pH ?? 7)), 0);
-      mix.pH = Number((-Math.log10(totalH / totalVolume)).toFixed(1));
-    } else {
-      checkedParams.forEach((param) => {
-        mix[param] = 0;
-      });
-    }
-    return mix;
-  }, [streams, checkedParams, totalVolume]);
-
-  const isPhPass = blended.pH >= limits.pH_min && blended.pH <= limits.pH_max;
-  const paramResults = checkedParams.map((key) => ({
-    key,
-    value: blended[key] || 0,
-    limit: limits[key],
-    pass: (blended[key] || 0) <= limits[key]
-  }));
-  const isAllPass = isPhPass && paramResults.every((r) => r.pass);
-
-  // Physical outcome proxies per end-use
-  const outcomes = useMemo(() => {
-    if (endUse.outcomeType === 'concrete') {
-      const strength = Number(
-        Math.max(85, Math.min(104, 100 - ((blended.COD || 0) / 400) * 2.5 - ((blended.SULFATES || 0) / 3000) * 2.0)).toFixed(1)
-      );
-      const settingTime = Number(
-        Math.max(1.2, Math.min(10.5, 3.5 + ((blended.COD || 0) / 500) * 1.5 - ((blended.CHLORIDES || 0) / 5000) * 0.8)).toFixed(1)
-      );
-      return [
-        {
-          label: '28-Day Strength Rating',
-          value: `${strength}%`,
-          hint: strength >= 95 ? 'Rock solid strength' : 'Slight strength reduction',
-          color: strength >= 95 ? '#34d399' : '#fbbf24'
-        },
-        {
-          label: 'Drying / Setting Time',
-          value: `${settingTime} h`,
-          hint: 'Ideal window: 2 to 6 hours',
-          color: '#fff'
-        }
-      ];
+      const totalH = streams.reduce((acc, s) => acc + s.volume * Math.pow(10, -(s.pH || 7.0)), 0);
+      res.pH = Number((-Math.log10(totalH / totalVolume)).toFixed(1));
     }
 
-    if (endUse.outcomeType === 'cooling') {
-      const scaling = Math.min(
-        100,
-        Math.round(((blended.HARDNESS || 0) / limits.HARDNESS) * 60 + ((blended.SILICA || 0) / limits.SILICA) * 40)
-      );
-      const bio = Math.min(
-        100,
-        Math.round(((blended.COD || 0) / limits.COD) * 60 + ((blended.BOD || 0) / limits.BOD) * 40)
-      );
-      return [
-        {
-          label: 'Scale Buildup Danger',
-          value: `${scaling}%`,
-          hint: scaling <= 35 ? 'Loops run clean between cleaners' : scaling <= 70 ? 'Descale twice a season' : 'Frequent acid cleaning required',
-          color: scaling <= 35 ? '#34d399' : scaling <= 70 ? '#fbbf24' : '#fb7185'
-        },
-        {
-          label: 'Biological Growth Risk',
-          value: `${bio}%`,
-          hint: bio <= 35 ? 'Biocide demand stays minimal' : bio <= 70 ? 'Boost biocide dosing' : 'Legionella monitoring required',
-          color: bio <= 35 ? '#34d399' : bio <= 70 ? '#fbbf24' : '#fb7185'
-        }
-      ];
-    }
+    customParams.forEach((cp) => {
+      const totalMass = streams.reduce((acc, s) => acc + s.volume * (s[cp.key] || 0), 0);
+      res[cp.key] = totalVolume > 0 ? Number((totalMass / totalVolume).toFixed(1)) : 0;
+    });
 
-    const staining = Math.min(
-      100,
-      Math.round(
-        ((blended.COLOR || 0) / limits.COLOR) * 45 +
-          ((blended.IRON || 0) / limits.IRON) * 30 +
-          ((blended.HARDNESS || 0) / limits.HARDNESS) * 25
-      )
-    );
-    const spotting = Math.min(
-      100,
-      Math.round(((blended.OIL || 0) / limits.OIL) * 60 + ((blended.TDS || 0) / limits.TDS) * 40)
-    );
-    return [
-      {
-        label: 'Fabric Staining Risk',
-        value: `${staining}%`,
-        hint: staining <= 35 ? 'Batch dyeing stays shade-true' : staining <= 70 ? 'Pre-wash recommended' : 'Rejects & re-dyes likely',
-        color: staining <= 35 ? '#34d399' : staining <= 70 ? '#fbbf24' : '#fb7185'
-      },
-      {
-        label: 'Spotting / Feel Defects',
-        value: `${spotting}%`,
-        hint: spotting <= 35 ? 'Smooth premium handfeel' : spotting <= 70 ? 'Extra softening pass needed' : 'Visible spots & stiff patches',
-        color: spotting <= 35 ? '#34d399' : spotting <= 70 ? '#fbbf24' : '#fb7185'
-      }
-    ];
-  }, [endUse, blended, limits]);
+    return res;
+  }, [streams, totalVolume, customParams]);
 
-  const recycledStreams = streams.filter((s) => !s.isFresh);
-  const recycledVolume = recycledStreams.reduce((acc, s) => acc + s.volume, 0);
+  // Safety Evaluation
+  const isTdsPass = blended.TDS <= activeLimits.TDS;
+  const isChloridePass = blended.CHLORIDES <= activeLimits.CHLORIDES;
+  const isSulfatePass = blended.SULFATES <= activeLimits.SULFATES;
+  const isCodPass = blended.COD <= activeLimits.COD;
+  const isPhPass = blended.pH >= (activeLimits.pH_min || 6.0) && blended.pH <= (activeLimits.pH_max || 9.0);
+
+  const customParamEvaluations = customParams.map((cp) => {
+    const val = blended[cp.key] || 0;
+    const isPass = val <= cp.limit;
+    return {
+      ...cp,
+      val,
+      isPass
+    };
+  });
+
+  const isAllCustomPass = customParamEvaluations.every((e) => e.isPass);
+  const isAllPass = isTdsPass && isChloridePass && isSulfatePass && isCodPass && isPhPass && isAllCustomPass;
+
+  const targetDemand = targetBuyer.demandD || 550;
+  const volumeCoveragePct = Math.min(150, Math.round((totalVolume / targetDemand) * 100));
+  const isVolumeSatisfied = totalVolume >= targetDemand;
+
+  const settingTimeHours = Number(
+    Math.max(1.2, Math.min(10.5, 3.5 + (blended.COD / 500) * 1.5 - (blended.CHLORIDES / 5000) * 0.8)).toFixed(1)
+  );
+  const compressiveStrengthPct = Number(
+    Math.max(85, Math.min(104, 100 - (blended.COD / 400) * 2.5 - (blended.SULFATES / 3000) * 2.0)).toFixed(1)
+  );
+
+  const recycledVolume = streams
+    .filter((s) => s.name.indexOf('Fresh Groundwater') === -1)
+    .reduce((acc, s) => acc + s.volume, 0);
   const recycledPct = totalVolume > 0 ? Math.round((recycledVolume / totalVolume) * 100) : 0;
 
-  const updateVolume = (id, val) => {
-    setStreams((prev) => prev.map((s) => (s.id === id ? { ...s, volume: parseInt(val, 10) || 0 } : s)));
+  const updateVolume = (idx, val) => {
+    const updated = [...streams];
+    updated[idx].volume = parseInt(val, 10) || 0;
+    setStreams(updated);
   };
 
-  // 1-Click Recipe Presets (always restore the default ingredient set)
-  const loadPreset = (type) => {
-    const volumes = type === 'safe_eco' ? [10, 130, 90, 20] : type === 'too_salty' ? [95, 40, 20, 10] : [0, 0, 0, 250];
-    setStreams(DEFAULT_STREAMS.map((s, i) => ({ ...DEFAULT_STREAMS[i], volume: volumes[i] })));
-  };
+  const handleAddCustomParam = (e) => {
+    e.preventDefault();
+    if (!newParamName.trim()) return;
 
-  // Load real, live effluent streams straight from the Exchange Network cluster
-  const loadLiveSnapshot = () => {
-    const live = (cluster?.suppliers || []).slice(0, 5).map((sup, i) => ({
-      id: `live-${sup.id}`,
-      name: sup.name,
-      volume: Math.min(sup.capacityW, 400),
-      COLOR: sup.effluent.COLOR ?? 0,
-      HARDNESS: sup.effluent.HARDNESS ?? 0,
-      SILICA: sup.effluent.SILICA ?? 0,
-      IRON: sup.effluent.IRON ?? 0,
-      OIL: sup.effluent.OIL ?? 0,
-      TDS: sup.effluent.TDS,
-      COD: sup.effluent.COD,
-      BOD: sup.effluent.BOD ?? 0,
-      CHLORIDES: sup.effluent.CHLORIDES,
-      SULFATES: sup.effluent.SULFATES,
-      pH: sup.effluent.pH,
-      color: STREAM_COLORS[i % STREAM_COLORS.length],
-      role: `${sup.sector} • Live network feed`
-    }));
-    if (live.length === 0) return;
-    setStreams([...live, { ...PRESET_FRESH_STREAM, id: 'fresh-backup', name: 'Fresh Groundwater (Top-up)' }]);
-  };
-
-  // Build a buyer's sourcing plan: all its allocated supplier streams + its own recycled internal water + fresh top-up
-  const loadBuyerSourceMix = (buyerId) => {
-    const allocation = (buyerAllocations || []).find((a) => a.buyer.id === buyerId);
-    if (!allocation) return;
-    const buyerName = allocation.buyer.name;
-    const sector = allocation.buyer.sector || '';
-    const s = sector.toLowerCase();
-    const target = s.includes('cooling')
-      ? 'cooling'
-      : s.includes('textile')
-      ? 'textile'
-      : s.includes('unreinforced') || s.includes('pavement') || s.includes('precast')
-      ? 'concrete_unreinforced'
-      : 'concrete_reinforced';
-    setEndUseKey(target);
-
-    const purchased = allocation.streams.map((st, i) => ({
-      id: `mix-${st.supplierId}`,
-      name: st.supplierName,
-      volume: Math.min(st.flowVolumeM3, 400),
-      TDS: st.treatedEffluent.TDS ?? 0,
-      COD: st.treatedEffluent.COD ?? 0,
-      BOD: st.treatedEffluent.BOD ?? 0,
-      CHLORIDES: st.treatedEffluent.CHLORIDES ?? 0,
-      SULFATES: st.treatedEffluent.SULFATES ?? 0,
-      HARDNESS: st.treatedEffluent.HARDNESS ?? 0,
-      SILICA: st.treatedEffluent.SILICA ?? 0,
-      IRON: st.treatedEffluent.IRON ?? 0,
-      COLOR: st.treatedEffluent.COLOR ?? 0,
-      OIL: st.treatedEffluent.OIL ?? 0,
-      pH: st.treatedEffluent.pH ?? 7.0,
-      color: STREAM_COLORS[i % STREAM_COLORS.length],
-      role: `${st.treatmentTech.shortName} • Sourced stream`
-    }));
-
-    const own = {
-      id: 'own-internal',
-      name: `${buyerName} — Own Recycled Internal Water`,
-      volume: 60,
-      TDS: 600,
-      COD: 150,
-      BOD: 40,
-      CHLORIDES: 100,
-      SULFATES: 80,
-      HARDNESS: 300,
-      SILICA: 20,
-      IRON: 0.2,
-      COLOR: 25,
-      OIL: 1,
-      pH: 7.2,
-      color: '#a78bfa',
-      role: "Factory's own recycled stream"
+    const key = newParamName.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const newP = {
+      id: `param-${Date.now()}`,
+      name: newParamName.trim(),
+      key,
+      unit: newParamUnit.trim() || 'mg/L',
+      limit: parseFloat(newParamLimit) || 100,
+      description: 'Factory-specific process parameter'
     };
 
-    const fresh = {
-      ...PRESET_FRESH_STREAM,
-      id: 'fresh-topup',
-      name: 'Fresh Groundwater (Top-up)',
-      volume: 40
-    };
+    setCustomParams((prev) => [...prev, newP]);
 
-    setStreams([...(allocation.streams.length > 0 ? purchased : []), own, fresh]);
+    setStreams((prev) =>
+      prev.map((s) => ({
+        ...s,
+        [key]: s[key] !== undefined ? s[key] : Math.round(newP.limit * 0.6)
+      }))
+    );
+
+    setNewParamName('');
+    setIsAddParamOpen(false);
+  };
+
+  const handleSelectPresetParam = (preset) => {
+    setNewParamName(preset.name);
+    setNewParamUnit(preset.unit);
+    setNewParamLimit(preset.defaultLimit);
+  };
+
+  const handleRemoveCustomParam = (id) => {
+    setCustomParams((prev) => prev.filter((p) => p.id !== id));
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-
-      {/* Top Header */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      
+      {/* 1. TOP HEADER & WORKFLOW TABS */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff' }}>
-              Water Blending Lab (Recipe Mixer)
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h1 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0f172a' }}>
+              Water Sourcing & Multi-Factory Blender Lab
             </h1>
-            <span className="status-pill status-cyan">{endUse.label}</span>
+            <span className="status-pill status-cyan">
+              Engineering Simulator
+            </span>
           </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '2px' }}>
-            Mix real factory water streams like a drink recipe until every parameter that matters for the target industry passes.
+          <p style={{ color: '#475569', fontSize: '0.86rem', marginTop: '3px' }}>
+            Analyze plant water requirements, evaluate local supplier efficiency, and simulate multi-source factory blends.
           </p>
         </div>
 
-        {/* 1-Click Presets & Live Load */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        {/* Workflow Phase Tabs */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#f1f5f9', padding: '3px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
           <button
-            className="btn btn-secondary btn-sm"
-            onClick={loadLiveSnapshot}
-            style={{ borderColor: 'rgba(56, 189, 248, 0.4)', color: '#38bdf8' }}
-            title="Pull the current effluent streams of every registered supplier in this cluster"
+            type="button"
+            className={`tab-pill ${activeWorkflowTab === 'step1' ? 'active' : ''}`}
+            onClick={() => setActiveWorkflowTab('step1')}
+            style={{ fontSize: '0.78rem', padding: '5px 12px' }}
           >
-            <DatabaseZap size={14} />
-            <span>Load Live Network Water</span>
+            1. Demand Analysis
           </button>
           <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => {
-              loadPreset('safe_eco');
-              setEndUseKey('concrete_reinforced');
-            }}
-            style={{ borderColor: 'rgba(16, 185, 129, 0.4)', color: '#34d399' }}
+            type="button"
+            className={`tab-pill ${activeWorkflowTab === 'step2' ? 'active' : ''}`}
+            onClick={() => setActiveWorkflowTab('step2')}
+            style={{ fontSize: '0.78rem', padding: '5px 12px' }}
           >
-            <Sparkles size={14} />
-            <span>Safe Eco Recipe</span>
+            2. Sourcing Efficiency
           </button>
           <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => loadPreset('too_salty')}
-            style={{ borderColor: 'rgba(244, 63, 94, 0.4)', color: '#fb7185' }}
+            type="button"
+            className={`tab-pill ${activeWorkflowTab === 'step3' ? 'active' : ''}`}
+            onClick={() => setActiveWorkflowTab('step3')}
+            style={{ fontSize: '0.78rem', padding: '5px 12px' }}
           >
-            <span>⚠️ Too Salty Demo</span>
-          </button>
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => {
-              loadPreset('benchmark');
-              setEndUseKey('concrete_reinforced');
-            }}
-          >
-            <RotateCcw size={14} />
-            <span>Reset</span>
+            3. Multi-Factory Blender
           </button>
         </div>
       </div>
 
-      {/* End-Use Selector — nobody factory fits one parameter list */}
-      <div
-        className="ui-card"
-        style={{
-          padding: '14px 18px',
-          background: 'rgba(255, 255, 255, 0.02)',
-          border: '1px solid var(--border-light)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px'
-        }}
-      >
-        <div>
-          <strong style={{ fontSize: '0.85rem', color: '#fff' }}>This recipe is for:</strong>{' '}
-          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{endUse.note}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          {Object.values(END_USE_LIMITS).map((eu) => (
-            <button
-              key={eu.id}
-              className={`tab-pill ${endUseKey === eu.id ? 'active' : ''}`}
-              onClick={() => setEndUseKey(eu.id)}
-              style={{ fontSize: '0.78rem', padding: '5px 12px' }}
-            >
-              {eu.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Friendly Analogy Box */}
-      <div
-        className="ui-card"
-        style={{
-          padding: '16px 20px',
-          background: 'rgba(14, 165, 233, 0.06)',
-          border: '1px solid rgba(14, 165, 233, 0.25)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '14px'
-        }}
-      >
-        <div style={{ fontSize: '1.8rem' }}>🍹</div>
-        <div style={{ fontSize: '0.85rem', color: '#e2e8f0', lineHeight: 1.5 }}>
-          <strong>How this works:</strong> Factories don't drink the water they reuse — they ask "does this mix clear the
-          specific chemistry MY process cares about?". Each end-use above keeps its own parameter checklist, and parameter rows
-          only appear if that industry tracks them. Blend a too-dirty stream with a cleaner one until every check turns green!
-        </div>
-      </div>
-
-      {/* Main Grid: Stream Sliders (Left) & Safety Scorecard (Right) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '20px' }}>
-
-        {/* Left: Interactive Ingredients (Streams) */}
-        <div className="ui-card" style={{ padding: '22px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FlaskConical size={18} color="var(--brand-cyan)" />
-              <h2 style={{ fontSize: '1.05rem', fontWeight: 600, color: '#fff' }}>
-                Water Ingredients to Mix
-              </h2>
-            </div>
-            <div className="status-pill status-cyan">
-              Total Volume: {totalVolume} m³/day
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {streams.map((stream) => {
-              const isFocus = focusFacilityId && stream.id === `live-${focusFacilityId}`;
-              return (
-                <div
-                  key={stream.id}
-                  style={{
-                    padding: '14px',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    borderRadius: 'var(--radius-md)',
-                    border: isFocus ? '1px solid rgba(16, 185, 129, 0.5)' : '1px solid var(--border-light)'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', gap: '8px' }}>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: stream.color }} />
-                        <strong style={{ fontSize: '0.9rem', color: '#fff' }}>{stream.name}</strong>
-                        {isFocus && <span className="status-pill status-emerald">🆕 Just registered</span>}
-                      </div>
-                      <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                        {stream.role} • Saltiness: {(stream.TDS || 0).toLocaleString()} mg/L
-                      </div>
-                    </div>
-
-                    <div className="mono" style={{ fontSize: '1.05rem', fontWeight: 700, color: '#38bdf8' }}>
-                      {stream.volume} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>m³/day</span>
-                    </div>
-                  </div>
-
-                  <input
-                    type="range"
-                    min="0"
-                    max="400"
-                    step="5"
-                    value={stream.volume}
-                    onChange={(e) => updateVolume(stream.id, e.target.value)}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right: Blended Result & Safety Scorecard */}
-        <div className="ui-card" style={{ padding: '22px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h2 style={{ fontSize: '1.05rem', fontWeight: 600, color: '#fff' }}>
-              Blended Recipe Safety Scorecard
-            </h2>
-            <span className={`status-pill ${isAllPass ? 'status-emerald' : 'status-rose'}`}>
-              {isAllPass ? '✅ Safe to Use' : '⚠️ Exceeds Limits'}
-            </span>
-          </div>
-
-          {/* Big Status Banner */}
-          <div
-            style={{
-              padding: '16px',
-              borderRadius: 'var(--radius-md)',
-              background: isAllPass ? 'rgba(16, 185, 129, 0.12)' : 'rgba(244, 63, 94, 0.12)',
-              border: `1px solid ${isAllPass ? 'rgba(16, 185, 129, 0.35)' : 'rgba(244, 63, 94, 0.35)'}`,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px'
-            }}
-          >
-            {isAllPass ? <CheckCircle2 size={24} color="#34d399" /> : <AlertCircle size={24} color="#f43f5e" />}
-            <div style={{ flex: 1 }}>
-              <strong style={{ fontSize: '0.95rem', color: isAllPass ? '#34d399' : '#fb7185' }}>
-                {isAllPass ? 'All Safety Checks Passed!' : 'Recipe Exceeds Safety Thresholds!'}
+      {/* Banner for Recently Registered Factory */}
+      {recentRegisteredFacility?.facility && (
+        <div
+          style={{
+            padding: '14px 18px',
+            borderRadius: '8px',
+            background: '#f0f9ff',
+            border: '1px solid #bae6fd',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Building2 size={20} color="#0284c7" />
+            <div>
+              <strong style={{ fontSize: '0.9rem', color: '#0f172a' }}>
+                Registered Factory Ready to Source & Blend: {recentRegisteredFacility.facility.name}
               </strong>
-              <p style={{ fontSize: '0.8rem', color: '#cbd5e1', marginTop: '2px' }}>
-                {isAllPass
-                  ? `This blend replaces ${recycledPct}% of fresh water for ${endUse.label.replace(/^[^\s]+\s/, '')} use.`
-                  : 'Too concentrated for this end-use. Add more wash water or fresh top-up to dilute!'}
-              </p>
+              <div style={{ fontSize: '0.78rem', color: '#475569' }}>
+                {recentRegisteredFacility.facility.sector} • Volume:{' '}
+                {recentRegisteredFacility.facility.capacityW || recentRegisteredFacility.facility.demandD} m³/day
+              </div>
             </div>
-            {isAllPass && onOpenExchange && (
-              <button className="btn btn-primary btn-sm" onClick={onOpenExchange} style={{ whiteSpace: 'nowrap' }}>
-                <span>Send to Exchange Network</span>
-                <ArrowRight size={14} />
+          </div>
+
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={handleLoadRegisteredFactory}
+          >
+            <FlaskConical size={14} />
+            <span>Load Stream in Blender Lab</span>
+          </button>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* STEP 1: FACTORY DEMAND & QUALITY SPECIFICATION ANALYSIS                   */}
+      {/* ========================================================================= */}
+      {activeWorkflowTab === 'step1' && (
+        <div
+          className="ui-card"
+          style={{
+            padding: '22px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '18px'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: 36, height: 36, borderRadius: '8px', background: '#f0f9ff', border: '1px solid #bae6fd', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Building2 size={18} color="#0284c7" />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Phase 1 • Quality & Demand Analysis
+                </div>
+                <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                  Target Factory Water Needs & Tolerance Specification
+                </h2>
+              </div>
+            </div>
+
+            {/* Target Buyer Selector Dropdown */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Target Factory:</span>
+              <select
+                value={selectedBuyerId}
+                onChange={(e) => setSelectedBuyerId(e.target.value)}
+                style={{
+                  background: '#ffffff',
+                  color: '#0f172a',
+                  border: '1px solid #cbd5e1',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '0.82rem',
+                  width: 'auto'
+                }}
+              >
+                {buyersList.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} ({b.sector?.split(' ')[0]}) - {b.demandD} m³/day
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Target Factory Summary & Quality Analysis Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '12px' }}>
+            <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '0.72rem', color: '#64748b' }}>Required Daily Volume</div>
+              <div className="mono" style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0284c7', marginTop: '2px' }}>
+                {targetBuyer.demandD} <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500 }}>m³/day</span>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>
+                {targetBuyer.sector}
+              </div>
+            </div>
+
+            <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '0.72rem', color: '#64748b' }}>Max Chlorides Allowed</div>
+              <div className="mono" style={{ fontSize: '1.45rem', fontWeight: 800, color: '#dc2626', marginTop: '2px' }}>
+                {activeLimits.CHLORIDES} <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500 }}>mg/L</span>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>
+                Prevents rebar pitting corrosion
+              </div>
+            </div>
+
+            <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '0.72rem', color: '#64748b' }}>Max Sulfates Allowed</div>
+              <div className="mono" style={{ fontSize: '1.45rem', fontWeight: 800, color: '#d97706', marginTop: '2px' }}>
+                {activeLimits.SULFATES} <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500 }}>mg/L</span>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>
+                Prevents ettringite expansion
+              </div>
+            </div>
+
+            <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '0.72rem', color: '#64748b' }}>Max TDS & Organics (COD)</div>
+              <div className="mono" style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>
+                {activeLimits.TDS.toLocaleString()} <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500 }}>TDS</span>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>
+                COD cap: {activeLimits.COD} mg/L | pH: {activeLimits.pH_min} - {activeLimits.pH_max}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ padding: '12px 16px', background: '#f0f9ff', borderRadius: '6px', border: '1px solid #bae6fd', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ fontSize: '0.82rem', color: '#0369a1', lineHeight: 1.5 }}>
+              <strong>Tolerance Profile for {targetBuyer.name}:</strong>{' '}
+              {targetBuyer.description || 'Requires high volumes of water with strictly capped chlorides and sulfates to ensure compliance with ASTM structural regulations and prevent machinery scale.'}
+            </div>
+
+            {activeWorkflowTab === 'step1' && (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => setActiveWorkflowTab('step2')}
+              >
+                <span>View Sourcing Efficiency</span>
+                <ChevronRight size={14} />
               </button>
             )}
           </div>
+        </div>
+      )}
 
-          {/* Physical outcome proxies */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-            {outcomes.map((o, i) => (
-              <div key={i} style={{ padding: '14px', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light)' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{o.label}</div>
-                <div className="mono" style={{ fontSize: '1.4rem', fontWeight: 700, color: o.color, marginTop: '4px' }}>
-                  {o.value}
-                </div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>{o.hint}</div>
+      {/* ========================================================================= */}
+      {/* STEP 2: SOURCING & LOGISTICS EFFICIENCY INTELLIGENCE                      */}
+      {/* ========================================================================= */}
+      {activeWorkflowTab === 'step2' && (
+        <div
+          className="ui-card"
+          style={{
+            padding: '22px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '18px'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: 36, height: 36, borderRadius: '8px', background: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Compass size={18} color="#16a34a" />
               </div>
-            ))}
-          </div>
-
-          {/* Chemical Limit Breakdown — dynamic per end-use */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-              Chemical Safety Checks ({checkedParams.length} params tracked for this end-use):
-            </h3>
-
-            {/* pH range check */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)' }}>
               <div>
-                <strong style={{ fontSize: '0.82rem', color: '#fff' }}>pH (Acidity Balance)</strong>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                  Allowed window: {limits.pH_min} – {limits.pH_max}
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Phase 2 • Local Supplier Sourcing & Logistics
                 </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="mono" style={{ fontSize: '0.9rem', color: isPhPass ? '#34d399' : '#f43f5e', fontWeight: 600 }}>
-                  {blended.pH}
-                </span>
-                <span style={{ fontSize: '0.8rem' }}>{isPhPass ? '✅' : '❌'}</span>
+                <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                  Supplier Efficiency & Transport Ranking for {targetBuyer.name}
+                </h2>
               </div>
             </div>
 
-            {paramResults.map((r) => (
+            <span className="status-pill status-neutral">
+              {sourcingAnalysis.length} Potential Local Suppliers
+            </span>
+          </div>
+
+          {/* Supplier Efficiency Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '12px' }}>
+            {sourcingAnalysis.map((item, rankIdx) => (
               <div
-                key={r.key}
+                key={item.supplier.id}
                 style={{
+                  padding: '16px',
+                  borderRadius: '8px',
+                  background: '#ffffff',
+                  border: rankIdx === 0 ? '1.5px solid #16a34a' : '1px solid #e2e8f0',
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '10px 12px',
-                  background: 'rgba(255,255,255,0.02)',
-                  borderRadius: 'var(--radius-sm)'
+                  flexDirection: 'column',
+                  gap: '10px',
+                  position: 'relative'
                 }}
               >
-                <div>
-                  <strong style={{ fontSize: '0.82rem', color: '#fff' }}>
-                    {PARAM_META[r.key]?.name || r.key} ({RISK_LABELS[r.key]})
-                  </strong>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                    Max limit: {r.limit.toLocaleString()} {PARAM_META[r.key]?.unit || 'mg/L'}
+                {rankIdx === 0 && (
+                  <div style={{ position: 'absolute', top: '-9px', right: '12px' }}>
+                    <span className="status-pill status-emerald" style={{ fontSize: '0.68rem', fontWeight: 700 }}>
+                      Rank #1 Best Match
+                    </span>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+                  <div>
+                    <div style={{ fontSize: '0.94rem', fontWeight: 700, color: '#0f172a' }}>
+                      {item.supplier.name}
+                    </div>
+                    <div style={{ fontSize: '0.76rem', color: '#64748b' }}>
+                      {item.supplier.sector} • Output: {item.supplier.capacityW} m³/day
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: 'right' }}>
+                    <div className="mono" style={{ fontSize: '1.15rem', fontWeight: 800, color: item.overallEfficiency >= 85 ? '#16a34a' : '#0284c7' }}>
+                      {item.overallEfficiency}%
+                    </div>
+                    <div style={{ fontSize: '0.68rem', color: '#64748b' }}>Efficiency</div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="mono" style={{ fontSize: '0.9rem', color: r.pass ? '#34d399' : '#f43f5e', fontWeight: 600 }}>
-                    {r.value} {PARAM_META[r.key]?.unit || 'mg/L'}
-                  </span>
-                  <span style={{ fontSize: '0.8rem' }}>{r.pass ? '✅' : '❌'}</span>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', padding: '8px 0', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9' }}>
+                  <div>
+                    <div style={{ fontSize: '0.68rem', color: '#64748b' }}>Distance</div>
+                    <div className="mono" style={{ fontSize: '0.85rem', color: '#0f172a', fontWeight: 600 }}>{item.distKm} km</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.68rem', color: '#64748b' }}>Vehicle Mode</div>
+                    <div style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: 600 }}>{item.transportMode.split(' ')[0]}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.68rem', color: '#64748b' }}>Daily Savings</div>
+                    <div className="mono" style={{ fontSize: '0.85rem', color: '#16a34a', fontWeight: 600 }}>৳ {item.dailySavingsBDT.toLocaleString()}</div>
+                  </div>
+                </div>
+
+                <div style={{ fontSize: '0.74rem', color: item.isDirectCompatible ? '#16a34a' : '#b45309', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {item.isDirectCompatible ? (
+                    <>
+                      <CheckCircle2 size={13} color="#16a34a" />
+                      <span>Directly compatible. Meets chemical limits.</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle size={13} color="#d97706" />
+                      <span>High salinity/COD. Optimal when blended with rinse water.</span>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
           </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setActiveWorkflowTab('step1')}
+            >
+              &larr; Back to Step 1 (Demand)
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => setActiveWorkflowTab('step3')}
+            >
+              <span>Proceed to Multi-Factory Sourcing</span>
+              <ChevronRight size={14} />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* STEP 3: MULTI-FACTORY POOLING & INTERACTIVE BLEND SIMULATOR               */}
+      {/* ========================================================================= */}
+      {activeWorkflowTab === 'step3' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          
+          <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setActiveWorkflowTab('step2')}
+            >
+              &larr; Back to Step 2 (Sourcing Efficiency)
+            </button>
+          </div>
+          
+          {/* Multi-Factory Cocktails Recommendation Box */}
+          <div
+            className="ui-card"
+            style={{
+              padding: '22px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              borderTop: '3px solid #0284c7'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: 36, height: 36, borderRadius: '8px', background: '#f0f9ff', border: '1px solid #bae6fd', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Layers size={18} color="#0284c7" />
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Multi-Factory Sourcing Bundles (2-3 Factory Pooling)
+                  </div>
+                  <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                    Sourcing Combinations for {targetBuyer.name} ({targetBuyer.demandD} m³/day)
+                  </h2>
+                </div>
+              </div>
+
+              <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                Pooling water from 2 to 3 factories ensures volume security and balances chemical salinity.
+              </div>
+            </div>
+
+            {/* Cocktails Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '12px' }}>
+              {multiFactoryCocktails.map((cocktail) => (
+                <div
+                  key={cocktail.id}
+                  style={{
+                    padding: '16px',
+                    borderRadius: '8px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '12px'
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <span className="status-pill status-cyan" style={{ fontSize: '0.68rem' }}>
+                        {cocktail.badge}
+                      </span>
+                      <span className="mono" style={{ fontSize: '0.85rem', color: '#16a34a', fontWeight: 700 }}>
+                        {cocktail.efficiencyScore}% Efficiency
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '0.94rem', fontWeight: 700, color: '#0f172a' }}>
+                      {cocktail.title}
+                    </div>
+                    <p style={{ fontSize: '0.78rem', color: '#475569', marginTop: '4px', lineHeight: 1.45 }}>
+                      {cocktail.description}
+                    </p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '10px' }}>
+                      {cocktail.sources.map((src, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '5px 8px',
+                            background: '#ffffff',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '4px',
+                            fontSize: '0.74rem'
+                          }}
+                        >
+                          <span style={{ color: '#0f172a' }}>
+                            {src.supplier.name.split(' ')[0]} ({src.share}%)
+                          </span>
+                          <span className="mono" style={{ color: '#0284c7', fontWeight: 600 }}>
+                            {src.volume} m³/day
+                          </span>
+                        </div>
+                      ))}
+
+                      {cocktail.groundwaterNeeded > 0 && (
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '5px 8px',
+                            background: '#ffffff',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '4px',
+                            fontSize: '0.74rem'
+                          }}
+                        >
+                          <span style={{ color: '#64748b' }}>Municipal Tap Backup</span>
+                          <span className="mono" style={{ color: '#64748b', fontWeight: 600 }}>
+                            {cocktail.groundwaterNeeded} m³/day
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>
+                    <div>
+                      <div style={{ fontSize: '0.66rem', color: '#64748b' }}>Daily Savings</div>
+                      <div className="mono" style={{ fontSize: '0.88rem', color: '#16a34a', fontWeight: 700 }}>
+                        ৳ {cocktail.dailySavingsBDT.toLocaleString()}/day
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => handleLoadCocktail(cocktail)}
+                      style={{ fontSize: '0.76rem', padding: '5px 10px' }}
+                    >
+                      <Sliders size={12} />
+                      <span>Load into Simulator</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Interactive Multi-Stream Sliders (Left) & Safety Scorecard (Right) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '16px' }}>
+            
+            {/* Left: Stream Sliders */}
+            <div className="ui-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FlaskConical size={16} color="#0284c7" />
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
+                    Sourced Streams ({streams.length} Factory Sources)
+                  </h3>
+                </div>
+
+                <div className={`status-pill ${isVolumeSatisfied ? 'status-emerald' : 'status-amber'}`}>
+                  {totalVolume} / {targetDemand} m³/day ({volumeCoveragePct}%)
+                </div>
+              </div>
+
+              {/* Sliders list */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {streams.map((stream, idx) => (
+                  <div
+                    key={stream.id}
+                    style={{
+                      padding: '12px',
+                      background: '#f8fafc',
+                      borderRadius: '6px',
+                      border: '1px solid #e2e8f0'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: stream.color }} />
+                          <strong style={{ fontSize: '0.86rem', color: '#0f172a' }}>{stream.name}</strong>
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '1px' }}>
+                          {stream.role} • TDS: {stream.TDS.toLocaleString()} mg/L | Cl: {stream.CHLORIDES} mg/L
+                        </div>
+                      </div>
+
+                      <div className="mono" style={{ fontSize: '1rem', fontWeight: 700, color: '#0284c7' }}>
+                        {stream.volume} <span style={{ fontSize: '0.72rem', color: '#64748b' }}>m³/day</span>
+                      </div>
+                    </div>
+
+                    <input
+                      type="range"
+                      min="0"
+                      max="350"
+                      step="5"
+                      value={stream.volume}
+                      onChange={(e) => updateVolume(idx, e.target.value)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: Blended Result & Safety Scorecard */}
+            <div className="ui-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
+                  Blended Recipe Safety Scorecard
+                </h3>
+                <span className={`status-pill ${isAllPass && isVolumeSatisfied ? 'status-emerald' : 'status-rose'}`}>
+                  {isAllPass && isVolumeSatisfied ? 'Fully Compliant & Volume Met' : 'Check Quality / Volume'}
+                </span>
+              </div>
+
+              {/* Status Banner */}
+              <div
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: '6px',
+                  background: isAllPass ? '#f0fdf4' : '#fef2f2',
+                  border: `1px solid ${isAllPass ? '#bbf7d0' : '#fecaca'}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px'
+                }}
+              >
+                {isAllPass ? (
+                  <CheckCircle2 size={20} color="#16a34a" />
+                ) : (
+                  <AlertCircle size={20} color="#dc2626" />
+                )}
+                <div>
+                  <strong style={{ fontSize: '0.88rem', color: isAllPass ? '#15803d' : '#b91c1c' }}>
+                    {isAllPass
+                      ? `All Safety Checks Passed for ${targetBuyer.name}`
+                      : `Recipe Exceeds Permissible Limits`}
+                  </strong>
+                  <p style={{ fontSize: '0.76rem', color: '#475569', marginTop: '1px' }}>
+                    {isAllPass
+                      ? `Replaces ${recycledPct}% of fresh groundwater without risking structural strength or scaling.`
+                      : 'Adjust the multi-factory volume sliders to dilute exceeding parameters.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Volume & Physical Performance Matrix */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                <div style={{ padding: '10px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '0.68rem', color: '#64748b' }}>Volume Fulfillment</div>
+                  <div className="mono" style={{ fontSize: '1.2rem', fontWeight: 700, color: isVolumeSatisfied ? '#16a34a' : '#d97706', marginTop: '2px' }}>
+                    {totalVolume} / {targetDemand} m³
+                  </div>
+                  <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '1px' }}>
+                    {isVolumeSatisfied ? '100% Demand satisfied' : `Deficit: ${targetDemand - totalVolume} m³/day`}
+                  </div>
+                </div>
+
+                <div style={{ padding: '10px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '0.68rem', color: '#64748b' }}>28-Day Strength Rating</div>
+                  <div className="mono" style={{ fontSize: '1.2rem', fontWeight: 700, color: compressiveStrengthPct >= 95 ? '#16a34a' : '#d97706', marginTop: '2px' }}>
+                    {compressiveStrengthPct}%
+                  </div>
+                  <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '1px' }}>
+                    Setting time: {settingTimeHours} hrs
+                  </div>
+                </div>
+              </div>
+
+              {/* Chemical Checks Breakdown */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#0f172a' }}>
+                    Chemical Checks:
+                  </span>
+                  <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Blended vs Cap</span>
+                </div>
+
+                {/* Chlorides */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: '#f8fafc', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                  <div>
+                    <strong style={{ fontSize: '0.78rem', color: '#0f172a' }}>Chlorides (Cl-)</strong>
+                    <div style={{ fontSize: '0.66rem', color: '#64748b' }}>Max limit: {activeLimits.CHLORIDES} mg/L</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="mono" style={{ fontSize: '0.82rem', color: isChloridePass ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                      {blended.CHLORIDES} mg/L
+                    </span>
+                    {isChloridePass ? <CheckCircle2 size={13} color="#16a34a" /> : <AlertCircle size={13} color="#dc2626" />}
+                  </div>
+                </div>
+
+                {/* Sulfates */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: '#f8fafc', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                  <div>
+                    <strong style={{ fontSize: '0.78rem', color: '#0f172a' }}>Sulfates (SO4 2-)</strong>
+                    <div style={{ fontSize: '0.66rem', color: '#64748b' }}>Max limit: {activeLimits.SULFATES} mg/L</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="mono" style={{ fontSize: '0.82rem', color: isSulfatePass ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                      {blended.SULFATES} mg/L
+                    </span>
+                    {isSulfatePass ? <CheckCircle2 size={13} color="#16a34a" /> : <AlertCircle size={13} color="#dc2626" />}
+                  </div>
+                </div>
+
+                {/* TDS */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: '#f8fafc', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                  <div>
+                    <strong style={{ fontSize: '0.78rem', color: '#0f172a' }}>TDS (Total Salinity)</strong>
+                    <div style={{ fontSize: '0.66rem', color: '#64748b' }}>Max limit: {activeLimits.TDS} mg/L</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="mono" style={{ fontSize: '0.82rem', color: isTdsPass ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                      {blended.TDS} mg/L
+                    </span>
+                    {isTdsPass ? <CheckCircle2 size={13} color="#16a34a" /> : <AlertCircle size={13} color="#dc2626" />}
+                  </div>
+                </div>
+
+                {/* COD */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: '#f8fafc', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                  <div>
+                    <strong style={{ fontSize: '0.78rem', color: '#0f172a' }}>COD (Organics)</strong>
+                    <div style={{ fontSize: '0.66rem', color: '#64748b' }}>Max limit: {activeLimits.COD} mg/L</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="mono" style={{ fontSize: '0.82rem', color: isCodPass ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                      {blended.COD} mg/L
+                    </span>
+                    {isCodPass ? <CheckCircle2 size={13} color="#16a34a" /> : <AlertCircle size={13} color="#dc2626" />}
+                  </div>
+                </div>
+              </div>
+
+              {/* Dynamic Custom Parameters */}
+              <div style={{ paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#0f172a' }}>
+                    Custom Parameters ({customParams.length})
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setIsAddParamOpen(!isAddParamOpen)}
+                    style={{ fontSize: '0.72rem', padding: '2px 6px' }}
+                  >
+                    <Plus size={12} />
+                    <span>Add Parameter</span>
+                  </button>
+                </div>
+
+                {isAddParamOpen && (
+                  <form
+                    onSubmit={handleAddCustomParam}
+                    style={{
+                      padding: '10px',
+                      background: '#f8fafc',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      marginBottom: '8px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                      {PRESET_CUSTOM_PARAMETERS.map((preset) => (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          className="tab-pill"
+                          onClick={() => handleSelectPresetParam(preset)}
+                          style={{ fontSize: '0.68rem', padding: '2px 6px' }}
+                        >
+                          {preset.name}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '6px' }}>
+                      <input
+                        type="text"
+                        placeholder="Parameter Name"
+                        value={newParamName}
+                        onChange={(e) => setNewParamName(e.target.value)}
+                        style={{ padding: '4px 6px', fontSize: '0.76rem' }}
+                        required
+                      />
+                      <input
+                        type="text"
+                        placeholder="Unit"
+                        value={newParamUnit}
+                        onChange={(e) => setNewParamUnit(e.target.value)}
+                        style={{ padding: '4px 6px', fontSize: '0.76rem' }}
+                      />
+                      <input
+                        type="number"
+                        placeholder="Limit"
+                        value={newParamLimit}
+                        onChange={(e) => setNewParamLimit(e.target.value)}
+                        style={{ padding: '4px 6px', fontSize: '0.76rem' }}
+                        required
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => setIsAddParamOpen(false)} style={{ fontSize: '0.7rem' }}>
+                        Cancel
+                      </button>
+                      <button type="submit" className="btn btn-primary btn-sm" style={{ fontSize: '0.7rem' }}>
+                        Save
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {customParamEvaluations.map((cp) => (
+                    <div
+                      key={cp.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '6px 8px',
+                        background: '#f8fafc',
+                        borderRadius: '4px',
+                        border: '1px solid #e2e8f0',
+                        fontSize: '0.76rem'
+                      }}
+                    >
+                      <div>
+                        <strong style={{ color: '#0f172a' }}>{cp.name}</strong>
+                        <span style={{ fontSize: '0.68rem', color: '#64748b', marginLeft: '6px' }}>Max: {cp.limit} {cp.unit}</span>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span className="mono" style={{ color: cp.isPass ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                          {cp.val} {cp.unit}
+                        </span>
+                        {cp.isPass ? <CheckCircle2 size={13} color="#16a34a" /> : <AlertCircle size={13} color="#dc2626" />}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCustomParam(cp.id)}
+                          style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Action Button: Apply Multi-Factory Blend to Exchange Network */}
+          <div
+            className="ui-card"
+            style={{
+              padding: '16px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px',
+              background: '#ffffff'
+            }}
+          >
+            <div>
+              <strong style={{ fontSize: '0.94rem', color: '#0f172a' }}>
+                Multi-Factory Sourcing Plan Configured:
+              </strong>
+              <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '1px' }}>
+                Sourcing {totalVolume} m³/day across {streams.length} factories with full chemical compliance for {targetBuyer.name}.
+              </div>
+            </div>
+
+            <Link
+              to="/optimizer"
+              className="btn btn-primary"
+            >
+              <Truck size={15} />
+              <span>Deploy Sourcing Plan to Exchange Network</span>
+              <ArrowRight size={15} />
+            </Link>
+          </div>
+
+        </div>
+      )}
+
     </div>
   );
 }

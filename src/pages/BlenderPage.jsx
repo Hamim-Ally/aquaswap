@@ -3,14 +3,7 @@ import BlendingSimulator from '../components/BlendingSimulator';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
-export default function BlenderPage({
-  cluster,
-  focusFacilityId,
-  focusBuyerId,
-  buyerAllocations,
-  onOpenExchange,
-  onOpenHowItWorks
-}) {
+export default function BlenderPage({ cluster, optimizationResults, onOpenHowItWorks }) {
   return (
     <div className="web-section" style={{ paddingTop: '32px', paddingBottom: '60px' }}>
       {/* Breadcrumb */}
@@ -29,26 +22,20 @@ export default function BlenderPage({
           <ArrowLeft size={15} />
           <span>Back to Overview</span>
         </Link>
-
-        <span className="status-pill status-emerald">
-          Page: /blender
-        </span>
       </div>
 
       <div
         className="ui-card"
         style={{
           padding: '32px',
-          background: 'rgba(11, 16, 28, 0.95)',
-          border: '1px solid var(--border-glow)'
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-light)',
+          boxShadow: 'var(--shadow-sm)'
         }}
       >
         <BlendingSimulator
           cluster={cluster}
-          focusFacilityId={focusFacilityId}
-          focusBuyerId={focusBuyerId}
-          buyerAllocations={buyerAllocations}
-          onOpenExchange={onOpenExchange}
+          optimizationResults={optimizationResults}
           onOpenHowItWorks={onOpenHowItWorks}
         />
       </div>

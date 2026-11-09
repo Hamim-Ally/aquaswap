@@ -6,114 +6,204 @@ import {
   AlertTriangle,
   ShieldCheck,
   Zap,
-  Info,
-  Building2,
-  ArrowRight
+  ArrowRight,
+  Award,
+  FileText,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
-export default function ComplianceRadar({ selectedMatch, cluster }) {
+export default function ComplianceRadar({
+  selectedMatch,
+  cluster,
+  metrics = {},
+  onOpenESGCertificate,
+  defaultTab = 'safety'
+}) {
+  const [activeTab, setActiveTab] = useState(defaultTab === 'all' ? 'safety' : defaultTab);
   const [onlineTds, setOnlineTds] = useState(2200);
   const [onlinePh, setOnlinePh] = useState(7.8);
+  const [showFullContract, setShowFullContract] = useState(false);
 
   const sup = selectedMatch?.supplier || cluster.suppliers[0];
   const buy = selectedMatch?.buyer || cluster.buyers[0];
-  const maxAllowedTds = buy.toleranceM.TDS || 50000;
+  const maxAllowedTds = buy.toleranceM?.TDS || 50000;
 
   const isDiverted = onlineTds > maxAllowedTds || onlinePh < 6.0 || onlinePh > 9.0;
+  const contractId = `WPA-2026-${(cluster.id || 'DHAK').toUpperCase().slice(0, 4)}-${(sup.id || 'SUP1').slice(0, 4).toUpperCase()}-${(buy.id || 'BUY1').slice(0, 4).toUpperCase()}`;
+
+  const municipalTariff = cluster.municipalWaterTariff || 45.0;
+  const agreedTariff = 22.0;
+  const tariffSavingsPercent = Math.max(10, Math.round((1 - agreedTariff / municipalTariff) * 100));
+  const dailyVolume = Math.min(sup.capacityW || 120, buy.demandD || 150);
 
   const handlePrint = () => {
     window.print();
   };
 
+  const handlePresetTest = (tds, ph) => {
+    setOnlineTds(tds);
+    setOnlinePh(ph);
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+      {/* 1. Clean Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff' }}>
-              Emergency Safety Valves &amp; Contract
-            </h1>
-            <span className="status-pill status-cyan">Automated SCADA Safety</span>
-          </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '2px' }}>
-            Test how automated sensors protect factories from bad water, and generate standard trade contracts.
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-heading)', margin: 0 }}>
+            Safety & Contracts
+          </h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.86rem', marginTop: '4px', margin: '4px 0 0 0' }}>
+            Automated inline SCADA shutoff telemetry and verified supply agreements.
           </p>
         </div>
 
-        <button className="btn btn-primary btn-sm" onClick={handlePrint}>
-          <Printer size={15} />
-          <span>Print / Export Contract</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button className="btn btn-secondary btn-sm" onClick={handlePrint}>
+            <Printer size={14} />
+            <span>Print Report</span>
+          </button>
+          {onOpenESGCertificate && (
+            <button className="btn btn-primary btn-sm" onClick={onOpenESGCertificate}>
+              <Award size={14} />
+              <span>ESG Certificate</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 2. Simple Navigation Tabs */}
+      <div
+        style={{
+          display: 'flex',
+          gap: '6px',
+          background: 'var(--bg-card)',
+          padding: '4px',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--border-light)',
+          width: 'fit-content'
+        }}
+      >
+        <button
+          className={`tab-pill ${activeTab === 'safety' ? 'active' : ''}`}
+          onClick={() => setActiveTab('safety')}
+        >
+          <Zap size={14} />
+          <span>SCADA Safety Valve</span>
+        </button>
+
+        <button
+          className={`tab-pill ${activeTab === 'contracts' ? 'active' : ''}`}
+          onClick={() => setActiveTab('contracts')}
+        >
+          <FileCheck2 size={14} />
+          <span>Water Purchase Agreement</span>
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))', gap: '20px' }}>
-        
-        {/* Left: Emergency Shutoff Valve Simulator */}
-        <div className="ui-card" style={{ padding: '22px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Zap size={18} color="var(--brand-cyan)" />
-              <h2 style={{ fontSize: '1.05rem', fontWeight: 600, color: '#fff' }}>
-                Live Safety Valve Simulator
-              </h2>
-            </div>
-            <span className={`status-pill ${isDiverted ? 'status-rose' : 'status-emerald'}`}>
-              {isDiverted ? '🚨 Emergency Shutoff' : '🟢 Flowing Safely'}
-            </span>
-          </div>
-
+      {/* ========================================================================= */}
+      {/* TAB 1: SCADA SAFETY VALVE SIMULATOR */}
+      {/* ========================================================================= */}
+      {activeTab === 'safety' && (
+        <div
+          className="ui-card"
+          style={{
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px',
+            background: 'var(--bg-card)',
+            border: isDiverted ? '1px solid #fca5a5' : '1px solid var(--border-light)'
+          }}
+        >
+          {/* Status Banner */}
           <div
             style={{
-              padding: '12px 14px',
-              background: 'rgba(14, 165, 233, 0.06)',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid rgba(14, 165, 233, 0.2)',
-              fontSize: '0.82rem',
-              color: '#cbd5e1',
-              lineHeight: 1.5
-            }}
-          >
-            🧪 <strong>Try the test:</strong> What happens if an upstream factory accidentally sends water that is too salty or acidic?
-            Drag the sensor sliders below to watch the automatic shutoff valve snap closed in real time!
-          </div>
-
-          {/* Big Visual Valve Status Indicator */}
-          <div
-            style={{
-              padding: '16px',
+              padding: '16px 20px',
               borderRadius: 'var(--radius-md)',
-              background: isDiverted ? 'rgba(244, 63, 94, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-              border: `1px solid ${isDiverted ? 'rgba(244, 63, 94, 0.4)' : 'rgba(16, 185, 129, 0.4)'}`,
+              background: isDiverted ? '#fef2f2' : '#f0fdf4',
+              border: `1px solid ${isDiverted ? '#fecaca' : '#bbf7d0'}`,
               display: 'flex',
               alignItems: 'center',
-              gap: '14px'
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px'
             }}
           >
-            {isDiverted ? (
-              <AlertTriangle size={28} color="#f43f5e" />
-            ) : (
-              <ShieldCheck size={28} color="#34d399" />
-            )}
-            <div>
-              <div style={{ fontSize: '1rem', fontWeight: 700, color: isDiverted ? '#fb7185' : '#34d399' }}>
-                {isDiverted ? 'VALVE DIVERTED TO SAFE TANK' : 'WATER FLOWING NORMALLY'}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div
+                style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '8px',
+                  background: isDiverted ? '#fee2e2' : '#dcfce7',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}
+              >
+                {isDiverted ? (
+                  <AlertTriangle size={24} color="#e11d48" />
+                ) : (
+                  <ShieldCheck size={24} color="#16a34a" />
+                )}
               </div>
-              <div style={{ fontSize: '0.8rem', color: '#e2e8f0', marginTop: '2px' }}>
-                {isDiverted
-                  ? 'Sensor exceeded safety limit. Water instantly redirected away from buyer to prevent equipment damage.'
-                  : 'All sensor readings are within contract limits. Safe for buyer process equipment.'}
+
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.95rem', fontWeight: 700, color: isDiverted ? '#991b1b' : '#166534' }}>
+                    {isDiverted ? 'Automatic Shutoff: Diversion Active' : 'Water Dispatch Active (Quality Approved)'}
+                  </span>
+                  <span className="mono" style={{ fontSize: '0.72rem', color: isDiverted ? '#991b1b' : '#166534', background: isDiverted ? '#fee2e2' : '#dcfce7', padding: '2px 6px', borderRadius: '4px' }}>
+                    &lt;200ms
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: isDiverted ? '#7f1d1d' : '#14532d', marginTop: '2px' }}>
+                  {isDiverted
+                    ? `Threshold breached (TDS: ${onlineTds} mg/L, pH: ${onlinePh}). Valve closed. ৳0 delivery charge.`
+                    : `Telemetry verified: TDS ${onlineTds} mg/L (limit: ${maxAllowedTds.toLocaleString()}), pH ${onlinePh}.`}
+                </div>
               </div>
+            </div>
+
+            {/* Quick Test Actions */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginRight: '4px' }}>Test:</span>
+              <button
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: '0.74rem', padding: '4px 8px' }}
+                onClick={() => handlePresetTest(1800, 7.4)}
+              >
+                Normal
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: '0.74rem', padding: '4px 8px' }}
+                onClick={() => handlePresetTest(52000, 7.2)}
+              >
+                Salinity Spike
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: '0.74rem', padding: '4px 8px' }}
+                onClick={() => handlePresetTest(2200, 4.6)}
+              >
+                Acid Spike
+              </button>
             </div>
           </div>
 
-          {/* Test Sliders */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '6px' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Water Saltiness (TDS)</span>
-                <span className="mono" style={{ color: onlineTds > maxAllowedTds ? '#f43f5e' : '#fff', fontWeight: 600 }}>
+          {/* Sliders Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+            
+            {/* TDS */}
+            <div style={{ padding: '14px', background: '#f8fafc', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: '8px' }}>
+                <span style={{ color: 'var(--text-heading)', fontWeight: 600 }}>TDS (Total Salinity)</span>
+                <span className="mono" style={{ color: onlineTds > maxAllowedTds ? '#e11d48' : '#0284c7', fontWeight: 700 }}>
                   {onlineTds.toLocaleString()} mg/L
                 </span>
               </div>
@@ -126,15 +216,16 @@ export default function ComplianceRadar({ selectedMatch, cluster }) {
                 onChange={(e) => setOnlineTds(parseInt(e.target.value, 10))}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                <span>Safe tap water: &lt;500 mg/L</span>
-                <span style={{ color: '#38bdf8' }}>Buyer Max Cap: {maxAllowedTds.toLocaleString()} mg/L</span>
+                <span>Freshwater: &lt;500 mg/L</span>
+                <span style={{ color: '#0284c7', fontWeight: 600 }}>Limit: {maxAllowedTds.toLocaleString()} mg/L</span>
               </div>
             </div>
 
-            <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '6px' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Water Acidity / pH Value</span>
-                <span className="mono" style={{ color: onlinePh < 6 || onlinePh > 9 ? '#f43f5e' : '#fff', fontWeight: 600 }}>
+            {/* pH */}
+            <div style={{ padding: '14px', background: '#f8fafc', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: '8px' }}>
+                <span style={{ color: 'var(--text-heading)', fontWeight: 600 }}>Acidity / pH Level</span>
+                <span className="mono" style={{ color: onlinePh < 6 || onlinePh > 9 ? '#e11d48' : '#16a34a', fontWeight: 700 }}>
                   {onlinePh.toFixed(1)} pH
                 </span>
               </div>
@@ -147,87 +238,149 @@ export default function ComplianceRadar({ selectedMatch, cluster }) {
                 onChange={(e) => setOnlinePh(parseFloat(e.target.value))}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                <span>Acidic (under 6.0)</span>
-                <span>Neutral (7.0 - 8.0)</span>
-                <span>Alkaline (over 9.0)</span>
+                <span>Acid (&lt;6.0)</span>
+                <span style={{ color: '#16a34a', fontWeight: 600 }}>Safe Window: 6.0 – 9.0</span>
+                <span>Alkaline (&gt;9.0)</span>
               </div>
             </div>
+
+          </div>
+
+          <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+            Hardware Fail-Safe: Valves automatically divert to containment if power or sensor signal is interrupted.
           </div>
         </div>
+      )}
 
-        {/* Right: Water Purchase Agreement Document */}
+      {/* ========================================================================= */}
+      {/* TAB 2: WATER PURCHASE AGREEMENT (WPA) */}
+      {/* ========================================================================= */}
+      {activeTab === 'contracts' && (
         <div
           className="ui-card"
           style={{
             padding: '24px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '16px',
-            background: '#0d1322'
+            gap: '18px',
+            background: '#ffffff',
+            border: '1px solid var(--border-light)',
+            borderRadius: 'var(--radius-md)'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FileCheck2 size={18} color="var(--brand-cyan)" />
-              <h2 style={{ fontSize: '1.05rem', fontWeight: 600, color: '#fff' }}>
-                Standard Water Trade Contract
-              </h2>
-            </div>
-            <span className="status-pill status-cyan">WPA Agreement</span>
-          </div>
-
-          <div
-            style={{
-              padding: '16px',
-              background: 'rgba(255, 255, 255, 0.02)',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border-light)',
-              fontSize: '0.82rem',
-              lineHeight: 1.6,
-              color: '#cbd5e1'
-            }}
-          >
-            <div style={{ marginBottom: '10px' }}>
-              <strong style={{ color: '#fff' }}>Agreement Parties:</strong>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                <span style={{ color: '#38bdf8' }}>{sup.name} (Seller)</span>
-                <ArrowRight size={14} color="var(--text-muted)" />
-                <span style={{ color: '#34d399' }}>{buy.name} (Buyer)</span>
-              </div>
-            </div>
-
-            <div style={{ marginBottom: '10px' }}>
-              <strong style={{ color: '#fff' }}>Agreed Supply Volume:</strong>
-              <div style={{ color: '#e2e8f0', marginTop: '2px' }}>
-                Up to {Math.min(sup.capacityW, buy.demandD)} m³/day via certified tanker delivery.
-              </div>
-            </div>
-
-            <div style={{ marginBottom: '10px' }}>
-              <strong style={{ color: '#fff' }}>Agreed Tariff:</strong>
-              <div style={{ color: '#34d399', fontWeight: 600, marginTop: '2px' }}>
-                $0.85 per m³ (Saves 53% compared to $1.80 city water)
-              </div>
-            </div>
-
+          {/* Header row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
             <div>
-              <strong style={{ color: '#fff' }}>Biosecurity & Quality Guarantee:</strong>
-              <p style={{ marginTop: '2px', color: 'var(--text-muted)' }}>
-                Water is continuously monitored at holding tanks. Any water exceeding {maxAllowedTds} mg/L TDS will automatically divert to holding ponds with zero delivery charge to Buyer.
-              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                  Active Supply Agreement
+                </h2>
+                <span className="status-pill status-emerald">Active Contract</span>
+              </div>
+              <span className="mono" style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                {contractId}
+              </span>
             </div>
-          </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'rgba(16, 185, 129, 0.08)', borderRadius: 'var(--radius-sm)' }}>
-            <span style={{ fontSize: '0.78rem', color: '#34d399' }}>
-              ✓ Legal terms comply with standard industrial commercial codes
-            </span>
             <button className="btn btn-secondary btn-sm" onClick={handlePrint}>
-              Export PDF
+              <FileText size={14} />
+              <span>Export PDF</span>
             </button>
           </div>
+
+          {/* Key Terms Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+            
+            <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', display: 'block', fontWeight: 600 }}>SUPPLIER &rarr; BUYER</span>
+              <strong style={{ color: 'var(--text-main)', fontSize: '0.88rem', display: 'block', marginTop: '2px' }}>
+                {sup.name?.split(' ')[0]} &rarr; {buy.name?.split(' ')[0]}
+              </strong>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>{sup.sector} to {buy.sector}</div>
+            </div>
+
+            <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', display: 'block', fontWeight: 600 }}>DAILY SUPPLY VOLUME</span>
+              <div className="mono" style={{ color: '#0284c7', fontWeight: 800, fontSize: '1.2rem', marginTop: '2px' }}>
+                {dailyVolume} <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>m³/day</span>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>Certified tanker carriers</div>
+            </div>
+
+            <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', display: 'block', fontWeight: 600 }}>AGREED TARIFF</span>
+              <div className="mono" style={{ color: '#059669', fontWeight: 800, fontSize: '1.2rem', marginTop: '2px' }}>
+                ৳ {agreedTariff.toFixed(0)} <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>/ m³</span>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#059669', marginTop: '2px', fontWeight: 600 }}>
+                Saves {tariffSavingsPercent}% vs municipal
+              </div>
+            </div>
+
+            <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', display: 'block', fontWeight: 600 }}>QUALITY STANDARD</span>
+              <strong style={{ color: 'var(--text-main)', fontSize: '0.88rem', display: 'block', marginTop: '2px' }}>
+                ASTM C1602 Compliant
+              </strong>
+              <div style={{ fontSize: '0.72rem', color: '#059669', marginTop: '2px' }}>Zero-cost liability on breach</div>
+            </div>
+
+          </div>
+
+          {/* Toggle Full Legal Clauses */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowFullContract(!showFullContract)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#0284c7',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '6px 0'
+              }}
+            >
+              <span>{showFullContract ? 'Hide Legal Clauses' : 'View Full Legal Clauses'}</span>
+              {showFullContract ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+
+            {showFullContract && (
+              <div
+                style={{
+                  marginTop: '8px',
+                  padding: '16px',
+                  background: '#f8fafc',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-light)',
+                  fontSize: '0.8rem',
+                  lineHeight: 1.6,
+                  color: 'var(--text-body)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}
+              >
+                <div>
+                  <strong>Article 1 (Quality Warranty):</strong> Supplier warrants that water supplied complies with agreed limits (TDS &le; {maxAllowedTds.toLocaleString()} mg/L, pH 6.0&ndash;9.0).
+                </div>
+                <div>
+                  <strong>Article 2 (Automatic Indemnity):</strong> Any delivery triggering SCADA telemetry shutdown is diverted to containment with ৳0 liability to Buyer.
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  Record SHA-256: 4f8b91c0e3a89073e82a0d922bc01 &bull; Verified under Industrial Symbiosis Guidelines
+                </div>
+              </div>
+            )}
+          </div>
+
         </div>
-      </div>
+      )}
+
     </div>
   );
 }

@@ -10,7 +10,6 @@ export default function OptimizerPage({
   optimizationResults,
   onRunOptimization,
   onOpenHowItWorks,
-  onOpenSavingsCalculator,
   onOpenESGCertificate,
   climateSeason,
   setClimateSeason
@@ -33,10 +32,6 @@ export default function OptimizerPage({
           <ArrowLeft size={15} />
           <span>Back to Overview</span>
         </Link>
-
-        <span className="status-pill status-cyan">
-          Page: /optimizer
-        </span>
       </div>
 
       {/* Optimizer Main View */}
@@ -44,8 +39,9 @@ export default function OptimizerPage({
         className="ui-card"
         style={{
           padding: '32px',
-          background: 'rgba(11, 16, 28, 0.95)',
-          border: '1px solid var(--border-glow)'
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-light)',
+          boxShadow: 'var(--shadow-sm)'
         }}
       >
         <OptimizerView
@@ -55,7 +51,6 @@ export default function OptimizerPage({
           optimizationResults={optimizationResults}
           onRunOptimization={onRunOptimization}
           onOpenHowItWorks={onOpenHowItWorks}
-          onOpenSavingsCalculator={onOpenSavingsCalculator}
           onOpenESGCertificate={onOpenESGCertificate}
           climateSeason={climateSeason}
           setClimateSeason={setClimateSeason}

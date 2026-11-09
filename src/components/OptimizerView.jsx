@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Play,
   Settings2,
@@ -12,16 +13,13 @@ import {
   ChevronDown,
   ChevronUp,
   Leaf,
-  Sparkles,
-  HelpCircle,
-  MapPin,
-  FlaskConical,
-  Info,
   Sun,
   CloudRain,
-  Calculator,
-  Award
+  Compass,
+  Sliders,
+  Filter
 } from 'lucide-react';
+import DistantCommuteAnalyzerModal from './DistantCommuteAnalyzerModal';
 
 export default function OptimizerView({
   cluster,
@@ -29,24 +27,19 @@ export default function OptimizerView({
   setSolverOptions,
   optimizationResults,
   onRunOptimization,
-  onOpenHowItWorks,
-  onViewMap,
-  onViewBlender,
-  onOpenSavingsCalculator,
-  onOpenESGCertificate,
   climateSeason,
   setClimateSeason
 }) {
   const [showSettings, setShowSettings] = useState(false);
-  const [expandedBuyerId, setExpandedBuyerId] = useState(null);
-  const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'high_savings', 'short_dist'
+  const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'heavy_tanker', 'compact_bowser', 'pipeline', 'high_savings'
+  const [expandedRouteIdx, setExpandedRouteIdx] = useState(null);
+  const [isDistantAnalyzerOpen, setIsDistantAnalyzerOpen] = useState(false);
+  const [selectedRouteForAnalysis, setSelectedRouteForAnalysis] = useState(null);
 
-  const { activeConnections, buyerAllocations, metrics } = optimizationResults;
+  const { activeConnections = [], metrics = {} } = optimizationResults;
 
   // Real world analogies
   const olympicPools = Math.max(1, Math.round((metrics.totalFreshwaterDisplacedYear || 0) / 2500));
-  const peopleSupplied = Math.max(10, Math.round(((metrics.totalReusedM3Day || 0) * 1000) / 120));
-  const treesEquivalent = Math.max(5, Math.round((metrics.avoidedCO2TonsYear || 0) * 45));
 
   // Goal Presets
   const applyPreset = (presetType) => {
@@ -98,390 +91,164 @@ export default function OptimizerView({
   };
 
   const filteredConnections = activeConnections.filter((conn) => {
-    if (activeFilter === 'short_dist') return conn.distanceKm <= 10;
+    if (activeFilter === 'heavy_tanker') return conn.recommendedVehicle === 'heavy_tanker';
+    if (activeFilter === 'compact_bowser') return conn.recommendedVehicle === 'compact_bowser';
+    if (activeFilter === 'pipeline') return conn.recommendedVehicle === 'pipeline';
     if (activeFilter === 'high_savings') return conn.flowVolumeM3 >= 150;
     return true;
   });
 
+  const heavyCount = activeConnections.filter((c) => c.recommendedVehicle === 'heavy_tanker').length;
+  const compactCount = activeConnections.filter((c) => c.recommendedVehicle === 'compact_bowser').length;
+  const pipelineCount = activeConnections.filter((c) => c.recommendedVehicle === 'pipeline').length;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* Top Header & Fast Action Buttons */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+      {/* 1. Clean Header & Control Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px', borderBottom: '1px solid var(--border-light)', paddingBottom: '16px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff' }}>
-              Factory Water Exchange Network
+            <h1 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-heading)', margin: 0 }}>
+              Water Exchange Network
             </h1>
-            <span className="status-pill status-cyan">
-              {cluster.name.split(' ')[0]} Region
+            <span className="status-pill status-cyan" style={{ fontSize: '0.74rem' }}>
+              {cluster.name}
             </span>
           </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '2px' }}>
-            Real-time matches connecting water suppliers with buyers to save money &amp; avoid river dumping.
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem', margin: '4px 0 0 0' }}>
+            Bilateral matching connecting factory effluent producers with manufacturing buyers.
           </p>
         </div>
 
-        {/* Action Controls & New Feature Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          {/* ROI Calculator Button */}
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={onOpenSavingsCalculator}
-            style={{ borderColor: 'rgba(16, 185, 129, 0.4)', color: '#34d399' }}
-          >
-            <Calculator size={15} />
-            <span>ROI Calculator</span>
-          </button>
+        {/* Compact Action Bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          
+          {/* Season Segmented Control */}
+          <div style={{ display: 'flex', alignItems: 'center', background: '#f1f5f9', borderRadius: '6px', padding: '2px', border: '1px solid var(--border-light)' }}>
+            <button
+              onClick={() => setClimateSeason('monsoon')}
+              style={{
+                border: 'none',
+                background: climateSeason === 'monsoon' ? '#ffffff' : 'transparent',
+                color: climateSeason === 'monsoon' ? '#0284c7' : '#64748b',
+                fontWeight: climateSeason === 'monsoon' ? 700 : 500,
+                fontSize: '0.74rem',
+                padding: '4px 9px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                boxShadow: climateSeason === 'monsoon' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none'
+              }}
+              title="Monsoon Baseline (Standard Municipal Tariff)"
+            >
+              <CloudRain size={12} />
+              <span>Monsoon</span>
+            </button>
+            <button
+              onClick={() => setClimateSeason('dry')}
+              style={{
+                border: 'none',
+                background: climateSeason === 'dry' ? '#ffffff' : 'transparent',
+                color: climateSeason === 'dry' ? '#0284c7' : '#64748b',
+                fontWeight: climateSeason === 'dry' ? 700 : 500,
+                fontSize: '0.74rem',
+                padding: '4px 9px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                boxShadow: climateSeason === 'dry' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none'
+              }}
+              title="Dry Season (Groundwater stress elevated)"
+            >
+              <span>Dry</span>
+            </button>
+            <button
+              onClick={() => setClimateSeason('drought')}
+              style={{
+                border: 'none',
+                background: climateSeason === 'drought' ? '#ffffff' : 'transparent',
+                color: climateSeason === 'drought' ? '#dc2626' : '#64748b',
+                fontWeight: climateSeason === 'drought' ? 700 : 500,
+                fontSize: '0.74rem',
+                padding: '4px 9px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                boxShadow: climateSeason === 'drought' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none'
+              }}
+              title="Severe Drought (Priority allocation & ৳65/m³ tariff)"
+            >
+              <Sun size={12} color={climateSeason === 'drought' ? '#dc2626' : '#64748b'} />
+              <span>Drought</span>
+            </button>
+          </div>
 
-          {/* ESG Certificate Button */}
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={onOpenESGCertificate}
-            style={{ borderColor: 'rgba(245, 158, 11, 0.4)', color: '#fbbf24' }}
+          {/* Strategy Presets Dropdown */}
+          <select
+            onChange={(e) => applyPreset(e.target.value)}
+            defaultValue="default"
+            style={{
+              padding: '5px 9px',
+              fontSize: '0.76rem',
+              borderRadius: '6px',
+              border: '1px solid var(--border-light)',
+              background: '#ffffff',
+              color: 'var(--text-main)',
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+            title="Select allocation objective"
           >
-            <Award size={15} />
-            <span>ESG Certificate</span>
-          </button>
+            <option value="default">Objective: Balanced</option>
+            <option value="eco">Objective: Max Water Recovery</option>
+            <option value="budget">Objective: Lowest Logistics Cost</option>
+            <option value="local">Objective: Local Proximity</option>
+          </select>
 
+          {/* Algorithm Weights Toggle */}
           <button
             className="btn btn-secondary btn-sm"
             onClick={() => setShowSettings(!showSettings)}
+            style={{ fontSize: '0.76rem', padding: '5px 10px', gap: '5px' }}
           >
-            <Settings2 size={15} />
-            <span>{showSettings ? 'Hide Tuning' : 'Change Strategy'}</span>
-            {showSettings ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            <Sliders size={13} color="#0284c7" />
+            <span>{showSettings ? 'Hide Weights' : 'Tuning'}</span>
           </button>
 
-          <button className="btn btn-primary btn-sm" onClick={onRunOptimization}>
-            <Play size={15} />
-            <span>Recalculate Routes</span>
+          {/* Recalculate Routes Primary Button */}
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={onRunOptimization}
+            style={{ fontSize: '0.76rem', padding: '5px 12px', gap: '5px' }}
+          >
+            <Play size={13} />
+            <span>Recalculate</span>
           </button>
         </div>
       </div>
 
-      {/* Seasonal Climate Stress Simulator Bar */}
-      <div
-        className="ui-card"
-        style={{
-          padding: '14px 20px',
-          background: climateSeason === 'drought'
-            ? 'linear-gradient(135deg, rgba(244, 63, 94, 0.12) 0%, rgba(245, 158, 11, 0.08) 100%)'
-            : climateSeason === 'dry'
-            ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(14, 165, 233, 0.08) 100%)'
-            : 'rgba(255, 255, 255, 0.02)',
-          border: climateSeason === 'drought'
-            ? '1px solid rgba(244, 63, 94, 0.35)'
-            : '1px solid var(--border-light)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {climateSeason === 'drought' ? (
-            <Sun size={20} color="#f43f5e" />
-          ) : (
-            <CloudRain size={20} color="var(--brand-cyan)" />
-          )}
-          <div>
-            <strong style={{ fontSize: '0.88rem', color: '#fff' }}>
-              Climate & Drought Season Simulator:
-            </strong>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '8px' }}>
-              {climateSeason === 'drought'
-                ? '🚨 Severe Drought: City water price is $3.80/m³. AquaSwap emergency rerouting prevents factory shutdowns!'
-                : climateSeason === 'dry'
-                ? '⛅ Dry Season: Aquifers stressed. Recycled water saves up to 60% compared to $2.40/m³ tap tariffs.'
-                : '🌧️ Monsoon / Wet: Baseline tariffs apply ($1.80/m³). Regular circular trades.'}
-            </span>
-          </div>
-        </div>
-
-        {/* Season Switcher Pills */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            className={`tab-pill ${climateSeason === 'monsoon' ? 'active' : ''}`}
-            onClick={() => setClimateSeason('monsoon')}
-            style={{ fontSize: '0.78rem', padding: '5px 12px' }}
-          >
-            🌧️ Monsoon
-          </button>
-          <button
-            className={`tab-pill ${climateSeason === 'dry' ? 'active' : ''}`}
-            onClick={() => setClimateSeason('dry')}
-            style={{ fontSize: '0.78rem', padding: '5px 12px' }}
-          >
-            ⛅ Dry Season
-          </button>
-          <button
-            className={`tab-pill ${climateSeason === 'drought' ? 'active' : ''}`}
-            onClick={() => setClimateSeason('drought')}
-            style={{
-              fontSize: '0.78rem',
-              padding: '5px 12px',
-              borderColor: climateSeason === 'drought' ? 'rgba(244, 63, 94, 0.5)' : 'transparent',
-              color: climateSeason === 'drought' ? '#fb7185' : 'var(--text-muted)'
-            }}
-          >
-            ☀️ Severe Drought
-          </button>
-        </div>
-      </div>
-
-      {/* Goal Presets Banner */}
-      <div
-        className="ui-card"
-        style={{
-          padding: '14px 18px',
-          background: 'rgba(255, 255, 255, 0.02)',
-          border: '1px solid var(--border-light)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Sparkles size={16} color="var(--brand-cyan)" />
-          <strong style={{ fontSize: '0.85rem', color: '#fff' }}>Quick Optimization Goal:</strong>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            Choose what matters most to your industrial park:
-          </span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => applyPreset('default')}
-            style={{ fontSize: '0.78rem' }}
-          >
-            ⚖️ Balanced Mix
-          </button>
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => applyPreset('eco')}
-            style={{ fontSize: '0.78rem', borderColor: 'rgba(16, 185, 129, 0.3)', color: '#34d399' }}
-          >
-            🌿 Save Max Water
-          </button>
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => applyPreset('budget')}
-            style={{ fontSize: '0.78rem', borderColor: 'rgba(245, 158, 11, 0.3)', color: '#fbbf24' }}
-          >
-            💰 Lowest Costs
-          </button>
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => applyPreset('local')}
-            style={{ fontSize: '0.78rem', borderColor: 'rgba(14, 165, 233, 0.3)', color: '#38bdf8' }}
-          >
-            📍 Shortest Trips Only
-          </button>
-        </div>
-      </div>
-
-      {/* 4 Clean Metric Cards with Relatable Everyday Analogies */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-        
-        {/* Recycled Volume */}
-        <div className="ui-card" style={{ padding: '18px 20px', position: 'relative' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span>Water Recycled</span>
-              <span title="Volume of wastewater cleaned and reused daily instead of being dumped" style={{ cursor: 'help' }}>ℹ️</span>
-            </span>
-            <Droplets size={18} color="var(--brand-cyan)" />
-          </div>
-          <div className="mono" style={{ fontSize: '1.65rem', fontWeight: 700, color: '#fff', marginTop: '6px' }}>
-            {metrics.totalReusedM3Day?.toLocaleString() || 0} <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>m³/day</span>
-          </div>
-          <div style={{ fontSize: '0.78rem', color: '#38bdf8', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <span>🏊</span>
-            <span>≈ <strong>{olympicPools}</strong> Olympic pools/year</span>
-          </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-            Enough water for <strong>{peopleSupplied.toLocaleString()}</strong> people daily
-          </div>
-        </div>
-
-        {/* Money Saved */}
-        <div className="ui-card" style={{ padding: '18px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span>Total Money Saved</span>
-              <span title="Net financial savings comparing cheaper recycled water against expensive city water and dumping fines" style={{ cursor: 'help' }}>ℹ️</span>
-            </span>
-            <DollarSign size={18} color="var(--accent-emerald)" />
-          </div>
-          <div className="mono" style={{ fontSize: '1.65rem', fontWeight: 700, color: '#34d399', marginTop: '6px' }}>
-            ${Math.round(metrics.netEconomicSurplusYear || 0).toLocaleString()}
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>/yr</span>
-          </div>
-          <div style={{ fontSize: '0.78rem', color: '#34d399', marginTop: '6px' }}>
-            💵 Combined savings for participating factories
-          </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-            Avoids ${Math.round(metrics.avoidedDischargeFinesYear || 0).toLocaleString()} in sewer penalty fines
-          </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-            ROI <strong style={{ color: '#34d399' }}>{metrics.roiPercent || 0}%</strong> on{' '}
-            ${Math.round(metrics.totalOperatingCostYear || 0).toLocaleString()} invested
-          </div>
-        </div>
-
-        {/* Active Connections */}
-        <div className="ui-card" style={{ padding: '18px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span>Active Trade Routes</span>
-              <span title="Number of bilateral factory partnerships actively exchanging water" style={{ cursor: 'help' }}>ℹ️</span>
-            </span>
-            <Layers size={18} color="var(--brand-cyan)" />
-          </div>
-          <div className="mono" style={{ fontSize: '1.65rem', fontWeight: 700, color: '#fff', marginTop: '6px' }}>
-            {metrics.activeMatchCount || 0} <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>routes</span>
-          </div>
-          <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <Truck size={13} color="var(--brand-cyan)" />
-            <span>Avg trip distance: <strong>{metrics.averageTruckDistanceKm || 0} km</strong></span>
-          </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-            Fast local delivery via standard tanker trucks
-          </div>
-        </div>
-
-        {/* Environmental Carbon Saved */}
-        <div className="ui-card" style={{ padding: '18px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span>Emissions Cut</span>
-              <span title="CO2 emissions prevented by not needing deep groundwater pumping" style={{ cursor: 'help' }}>ℹ️</span>
-            </span>
-            <Leaf size={18} color="var(--accent-emerald)" />
-          </div>
-          <div className="mono" style={{ fontSize: '1.65rem', fontWeight: 700, color: '#34d399', marginTop: '6px' }}>
-            {metrics.avoidedCO2TonsYear || 0} <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>t CO₂e/yr</span>
-          </div>
-          <div style={{ fontSize: '0.78rem', color: '#34d399', marginTop: '6px' }}>
-            🌳 Equivalent to planting <strong>{treesEquivalent.toLocaleString()}</strong> trees
-          </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-            Cuts heavy energy used by deep-well borehole pumps
-          </div>
-        </div>
-      </div>
-
-      {/* Transport Fleet & ROI Analysis */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '16px' }}>
-        {/* Fleet Load Efficiency */}
-        <div className="ui-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Truck size={18} color="var(--brand-cyan)" />
-              <strong style={{ fontSize: '0.95rem', color: '#fff' }}>Transport Network Efficiency</strong>
-            </div>
-            <span className="status-pill status-cyan">{metrics.trucksOnRoadDaily || 0} truck trips/day</span>
-          </div>
-
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-body)', lineHeight: 1.5 }}>
-            Trucks average <strong style={{ color: '#fff' }}>{metrics.averageTruckDistanceKm || 0} km</strong> per trip. The engine
-            picks the cheapest truck size for each route — a larger truck running half-empty loses efficiency because you pay the
-            full trip either way.
-          </div>
-
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: '5px' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Fleet load factor (how full the trucks run)</span>
-              <span className="mono" style={{ color: '#fff', fontWeight: 700 }}>
-                {metrics.fleetUtilizationPct || 0}%
-              </span>
-            </div>
-            <div style={{ height: '10px', background: 'rgba(255,255,255,0.06)', borderRadius: '6px', overflow: 'hidden' }}>
-              <div
-                style={{
-                  height: '100%',
-                  width: `${metrics.fleetUtilizationPct || 0}%`,
-                  background: 'linear-gradient(90deg, #0ea5e9, #34d399)',
-                  borderRadius: '6px'
-                }}
-              />
-            </div>
-          </div>
-
-          <div style={{ fontSize: '0.78rem', lineHeight: 1.55, color: 'var(--text-muted)' }}>
-            {metrics.fleetEfficiencyLossPct > 0
-              ? `⚠️ ${metrics.fleetEfficiencyLossPct}% of truck space rolls empty — transport cost per m³ rises by that share on partial loads.`
-              : '✅ Every truck trip ships completely full — zero transport efficiency loss. 🎯'}
-          </div>
-        </div>
-
-        {/* Water ROI Ledger */}
-        <div className="ui-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <DollarSign size={18} color="#34d399" />
-              <strong style={{ fontSize: '0.95rem', color: '#fff' }}>Water ROI Ledger</strong>
-            </div>
-            <span className="status-pill status-emerald">ROI {metrics.roiPercent || 0}% / yr</span>
-          </div>
-
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            1 m³ is worth <strong style={{ color: '#38bdf8' }}>${(cluster.municipalWaterTariff + cluster.sewerDischargeFine).toFixed(2)}</strong>{' '}
-            here — city water ${cluster.municipalWaterTariff.toFixed(2)} + dumping fine ${cluster.sewerDischargeFine.toFixed(2)} avoided.
-          </div>
-
-          {[
-            { label: '➕ Water value generated', val: metrics.totalValueDaily, neg: false },
-            { label: '➖ Buying water from suppliers', val: metrics.totalPurchaseCostDaily, neg: true },
-            { label: '➖ Trucking & fuel', val: metrics.totalTransportCostDaily, neg: true },
-            { label: '➖ Treatment & cleaning', val: metrics.totalTreatmentCostDaily, neg: true }
-          ].map((row, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>
-              <span style={{ color: 'var(--text-body)' }}>{row.label}</span>
-              <span className="mono" style={{ color: row.neg ? '#fb7185' : '#34d399', fontWeight: 700 }}>
-                {row.neg ? '−' : '+'}${Math.abs(Math.round(row.val || 0)).toLocaleString()}/day
-              </span>
-            </div>
-          ))}
-
-          <div
-            style={{
-              borderTop: '1px solid var(--border-light)',
-              paddingTop: '10px',
-              marginTop: '2px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}
-          >
-            <span style={{ fontSize: '0.85rem', color: '#fff', fontWeight: 700 }}>Net profit</span>
-            <span className="mono" style={{ fontSize: '1.15rem', fontWeight: 800, color: '#34d399' }}>
-              +${Math.round(metrics.totalNetDaily || 0).toLocaleString()}/day
-            </span>
-          </div>
-
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-            ${Math.round(metrics.netEconomicSurplusYear || 0).toLocaleString()}/yr net on{' '}
-            ${Math.round(metrics.totalOperatingCostYear || 0).toLocaleString()}/yr invested = {metrics.roiPercent || 0}% ROI
-            (${metrics.netProfitPerM3 || 0} profit per m³). Only ROI-positive trades are executed.
-          </div>
-        </div>
-      </div>
-
-      {/* Advanced Settings Drawer */}
+      {/* 2. Optional Algorithm Weight Tuning Drawer */}
       {showSettings && (
-        <div className="ui-card" style={{ padding: '20px', background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(14, 165, 233, 0.3)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Settings2 size={16} color="var(--brand-cyan)" />
-              <strong style={{ fontSize: '0.9rem', color: '#fff' }}>
-                Tuning Preferences
-              </strong>
+        <div
+          className="ui-card"
+          style={{
+            padding: '16px 20px',
+            background: '#f8fafc',
+            border: '1px solid var(--border-light)',
+            borderRadius: 'var(--radius-md)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-heading)' }}>
+              <Settings2 size={14} color="#0284c7" />
+              <span>Algorithm Parameters & Weights</span>
             </div>
             <button
               className="btn btn-secondary btn-sm"
@@ -489,18 +256,17 @@ export default function OptimizerView({
                 applyPreset('default');
                 onRunOptimization();
               }}
+              style={{ fontSize: '0.72rem', padding: '3px 8px' }}
             >
-              <RotateCcw size={13} /> Reset to Defaults
+              <RotateCcw size={11} /> Reset
             </button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '6px' }}>
-                <span style={{ color: 'var(--text-muted)' }}>
-                  River Scarcity Priority
-                </span>
-                <span className="mono" style={{ color: '#fff', fontWeight: 600 }}>{solverOptions.alpha.toFixed(1)}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', marginBottom: '4px' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Aquifer Scarcity (Alpha)</span>
+                <span className="mono" style={{ fontWeight: 700 }}>{solverOptions.alpha.toFixed(1)}</span>
               </div>
               <input
                 type="range"
@@ -509,18 +275,14 @@ export default function OptimizerView({
                 step="0.1"
                 value={solverOptions.alpha}
                 onChange={(e) => setSolverOptions({ ...solverOptions, alpha: parseFloat(e.target.value) })}
+                style={{ width: '100%', accentColor: '#0284c7' }}
               />
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Higher value = favor helping factories in drought-prone areas
-              </div>
             </div>
 
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '6px' }}>
-                <span style={{ color: 'var(--text-muted)' }}>
-                  Travel Distance Penalty
-                </span>
-                <span className="mono" style={{ color: '#fff', fontWeight: 600 }}>{solverOptions.beta.toFixed(1)}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', marginBottom: '4px' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Distance Penalty (Beta)</span>
+                <span className="mono" style={{ fontWeight: 700 }}>{solverOptions.beta.toFixed(1)}</span>
               </div>
               <input
                 type="range"
@@ -529,18 +291,14 @@ export default function OptimizerView({
                 step="0.1"
                 value={solverOptions.beta}
                 onChange={(e) => setSolverOptions({ ...solverOptions, beta: parseFloat(e.target.value) })}
+                style={{ width: '100%', accentColor: '#0284c7' }}
               />
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Higher value = keep truck trips short and local
-              </div>
             </div>
 
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '6px' }}>
-                <span style={{ color: 'var(--text-muted)' }}>
-                  Treatment Cost Penalty
-                </span>
-                <span className="mono" style={{ color: '#fff', fontWeight: 600 }}>{solverOptions.gamma.toFixed(1)}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', marginBottom: '4px' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Treatment Cost Penalty (Gamma)</span>
+                <span className="mono" style={{ fontWeight: 700 }}>{solverOptions.gamma.toFixed(1)}</span>
               </div>
               <input
                 type="range"
@@ -549,18 +307,14 @@ export default function OptimizerView({
                 step="0.1"
                 value={solverOptions.gamma}
                 onChange={(e) => setSolverOptions({ ...solverOptions, gamma: parseFloat(e.target.value) })}
+                style={{ width: '100%', accentColor: '#0284c7' }}
               />
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Higher value = prefer direct reuse over expensive filters
-              </div>
             </div>
 
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '6px' }}>
-                <span style={{ color: 'var(--text-muted)' }}>
-                  Min Tanker Volume
-                </span>
-                <span className="mono" style={{ color: '#fff', fontWeight: 600 }}>{solverOptions.qMin} m³</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', marginBottom: '4px' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Min Batch Consignment (qMin)</span>
+                <span className="mono" style={{ fontWeight: 700 }}>{solverOptions.qMin} m³</span>
               </div>
               <input
                 type="range"
@@ -569,167 +323,323 @@ export default function OptimizerView({
                 step="5"
                 value={solverOptions.qMin}
                 onChange={(e) => setSolverOptions({ ...solverOptions, qMin: parseInt(e.target.value, 10) })}
+                style={{ width: '100%', accentColor: '#0284c7' }}
               />
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Smallest trade allowed (1 standard truck = 25 m³)
-              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Main Routes Section */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+      {/* 3. Clean 4-Metric Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+        
+        {/* Metric 1 */}
+        <div className="ui-card" style={{ padding: '14px 18px', background: '#ffffff' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+            <span>Water Recycled</span>
+            <Droplets size={16} color="#0284c7" />
+          </div>
+          <div className="mono" style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-heading)', marginTop: '4px' }}>
+            {metrics.totalReusedM3Day?.toLocaleString() || 0} <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 500 }}>m³/day</span>
+          </div>
+          <div style={{ fontSize: '0.74rem', color: '#0284c7', marginTop: '3px' }}>
+            ≈ {olympicPools} Olympic pools/yr saved
+          </div>
+        </div>
+
+        {/* Metric 2 */}
+        <div className="ui-card" style={{ padding: '14px 18px', background: '#ffffff' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+            <span>Annual Savings</span>
+            <DollarSign size={16} color="#16a34a" />
+          </div>
+          <div className="mono" style={{ fontSize: '1.45rem', fontWeight: 800, color: '#16a34a', marginTop: '4px' }}>
+            ৳ {Math.round(metrics.netEconomicSurplusYear || 0).toLocaleString()}
+          </div>
+          <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '3px' }}>
+            Net annual economic surplus
+          </div>
+        </div>
+
+        {/* Metric 3 */}
+        <div className="ui-card" style={{ padding: '14px 18px', background: '#ffffff' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+            <span>Active Corridors</span>
+            <Truck size={16} color="#0284c7" />
+          </div>
+          <div className="mono" style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-heading)', marginTop: '4px' }}>
+            {metrics.activeMatchCount || 0} <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 500 }}>routes</span>
+          </div>
+          <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '3px' }}>
+            Avg distance: {metrics.averageTruckDistanceKm || 0} km
+          </div>
+        </div>
+
+        {/* Metric 4 */}
+        <div className="ui-card" style={{ padding: '14px 18px', background: '#ffffff' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+            <span>Emissions Abated</span>
+            <Leaf size={16} color="#16a34a" />
+          </div>
+          <div className="mono" style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>
+            {metrics.avoidedCO2TonsYear || 0} <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 500 }}>t CO₂e/yr</span>
+          </div>
+          <div style={{ fontSize: '0.74rem', color: '#16a34a', marginTop: '3px' }}>
+            Reduced deep-well pumping
+          </div>
+        </div>
+
+      </div>
+
+      {/* 4. Corridors List & Minimalist Filtering */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '6px' }}>
+        
+        {/* Section Header & Vehicle Filters */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
           <div>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff' }}>
-              Active Water Exchange Corridors
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-heading)', margin: 0 }}>
+              Active Trade Corridors
             </h2>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              {activeConnections.length} verified routes matching wastewater with industrial needs
-            </p>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+              {filteredConnections.length} verified trade pairings currently routed
+            </span>
           </div>
 
-          {/* Filter Pills */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {/* Clean Filter Pills */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
             <button
               className={`tab-pill ${activeFilter === 'all' ? 'active' : ''}`}
               onClick={() => setActiveFilter('all')}
-              style={{ padding: '5px 12px', fontSize: '0.78rem' }}
+              style={{ padding: '4px 10px', fontSize: '0.74rem' }}
             >
-              All Routes ({activeConnections.length})
+              All ({activeConnections.length})
             </button>
             <button
-              className={`tab-pill ${activeFilter === 'short_dist' ? 'active' : ''}`}
-              onClick={() => setActiveFilter('short_dist')}
-              style={{ padding: '5px 12px', fontSize: '0.78rem' }}
+              className={`tab-pill ${activeFilter === 'heavy_tanker' ? 'active' : ''}`}
+              onClick={() => setActiveFilter('heavy_tanker')}
+              style={{ padding: '4px 10px', fontSize: '0.74rem' }}
             >
-              Short Distance (&lt;10km)
+              Heavy Tanker ({heavyCount})
             </button>
+            <button
+              className={`tab-pill ${activeFilter === 'compact_bowser' ? 'active' : ''}`}
+              onClick={() => setActiveFilter('compact_bowser')}
+              style={{ padding: '4px 10px', fontSize: '0.74rem' }}
+            >
+              Compact Bowser ({compactCount})
+            </button>
+            {pipelineCount > 0 && (
+              <button
+                className={`tab-pill ${activeFilter === 'pipeline' ? 'active' : ''}`}
+                onClick={() => setActiveFilter('pipeline')}
+                style={{ padding: '4px 10px', fontSize: '0.74rem' }}
+              >
+                HDPE Pipeline ({pipelineCount})
+              </button>
+            )}
             <button
               className={`tab-pill ${activeFilter === 'high_savings' ? 'active' : ''}`}
               onClick={() => setActiveFilter('high_savings')}
-              style={{ padding: '5px 12px', fontSize: '0.78rem' }}
+              style={{ padding: '4px 10px', fontSize: '0.74rem' }}
             >
               High Volume (150m³+)
             </button>
           </div>
         </div>
 
-        {/* Route Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '16px' }}>
-          {filteredConnections.map((conn, idx) => (
-            <div
-              key={idx}
-              className="ui-card"
-              style={{
-                padding: '18px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '14px',
-                borderLeft: '4px solid var(--brand-cyan)'
-              }}
-            >
-              {/* Partner Header */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff' }}>
-                      {conn.supplierName}
-                    </span>
-                    <ArrowRight size={14} color="var(--brand-cyan)" />
-                    <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#38bdf8' }}>
-                      {conn.buyerName}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    {conn.supplierSector} → {conn.buyerSector}
-                  </div>
-                </div>
+        {/* Streamlined Corridor Cards */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {filteredConnections.map((conn, idx) => {
+            const isExpanded = expandedRouteIdx === idx;
+            const transportWay = conn.transportWay || {};
+            const corridor = transportWay.corridor || {};
+            const allOptions = transportWay.allOptions || [];
+            const savingsDaily = Math.round((conn.flowVolumeM3 || 100) * 16.5);
 
-                <span className="status-pill status-emerald">
-                  💰 ${Math.round(conn.netDaily || 0).toLocaleString()}/day profit
-                </span>
-              </div>
-
-              {/* Plain English Story Box */}
+            return (
               <div
+                key={idx}
+                className="ui-card"
                 style={{
-                  padding: '10px 12px',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  borderRadius: 'var(--radius-sm)',
-                  fontSize: '0.8rem',
-                  lineHeight: 1.45,
-                  color: '#cbd5e1'
+                  padding: '16px 20px',
+                  background: '#ffffff',
+                  border: '1px solid var(--border-light)',
+                  borderRadius: 'var(--radius-md)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                  transition: 'border-color 0.15s ease'
                 }}
               >
-                💧 <strong>How it works:</strong> {conn.supplierName} cleans its leftover rinse water using a{' '}
-                <strong style={{ color: '#38bdf8' }}>{conn.treatmentTech.shortName}</strong> and sends{' '}
-                <strong style={{ color: '#fff' }}>{conn.flowVolumeM3} m³/day</strong> to {conn.buyerName} across a{' '}
-                <strong>{conn.distanceKm} km</strong> trip with a <strong style={{ color: '#38bdf8' }}>{conn.truckName}</strong> ({conn.tripsDaily} trips/day).
-              </div>
+                {/* Main Row: Pairing Info, Metrics, Actions */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
+                  
+                  {/* Left: Supplier -> Buyer Pairing */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '280px' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#f0f9ff', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.76rem' }}>
+                      #{idx + 1}
+                    </div>
 
-              {/* Route Metric Pills */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                <div style={{ padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Daily Volume</div>
-                  <div className="mono" style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff', marginTop: '2px' }}>
-                    {conn.flowVolumeM3} m³
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <strong style={{ fontSize: '0.94rem', color: 'var(--text-heading)' }}>
+                          {conn.supplierName}
+                        </strong>
+                        <ArrowRight size={13} color="#0284c7" />
+                        <strong style={{ fontSize: '0.94rem', color: 'var(--text-heading)' }}>
+                          {conn.buyerName}
+                        </strong>
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        {conn.supplierSector} &rarr; {conn.buyerSector}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Middle: Badges Strip */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                    <div style={{ textAlign: 'center', minWidth: '70px' }}>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Daily Volume</div>
+                      <div className="mono" style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-heading)' }}>
+                        {conn.flowVolumeM3} m³/d
+                      </div>
+                    </div>
+
+                    <div style={{ width: '1px', height: '24px', background: 'var(--border-light)' }} />
+
+                    <div style={{ textAlign: 'center', minWidth: '70px' }}>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Distance</div>
+                      <div className="mono" style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-heading)' }}>
+                        {conn.distanceKm} km
+                      </div>
+                    </div>
+
+                    <div style={{ width: '1px', height: '24px', background: 'var(--border-light)' }} />
+
+                    <div style={{ textAlign: 'center', minWidth: '100px' }}>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Transport Mode</div>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                        <Truck size={12} />
+                        <span>{conn.recommendedVehicle === 'heavy_tanker' ? '28m³ Tanker' : conn.recommendedVehicle === 'compact_bowser' ? '14m³ Bowser' : 'HDPE Pipeline'}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ width: '1px', height: '24px', background: 'var(--border-light)' }} />
+
+                    <div style={{ textAlign: 'center', minWidth: '85px' }}>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Daily Savings</div>
+                      <div className="mono" style={{ fontSize: '0.92rem', fontWeight: 700, color: '#16a34a' }}>
+                        ৳ {savingsDaily.toLocaleString()}/d
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: Actions */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Link
+                      to="/fleet"
+                      className="btn btn-secondary btn-sm"
+                      style={{ fontSize: '0.74rem', padding: '5px 10px', gap: '4px' }}
+                      title="Inspect tanker travel along real street paths"
+                    >
+                      <span>Live Map</span>
+                      <ArrowRight size={12} />
+                    </Link>
+
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        setSelectedRouteForAnalysis(conn);
+                        setIsDistantAnalyzerOpen(true);
+                      }}
+                      style={{ fontSize: '0.74rem', padding: '5px 10px', gap: '4px' }}
+                      title="Analyze transit cost and vehicle ROI"
+                    >
+                      <Compass size={12} color="#0284c7" />
+                      <span>ROI Tuner</span>
+                    </button>
+
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => setExpandedRouteIdx(isExpanded ? null : idx)}
+                      style={{ fontSize: '0.74rem', padding: '5px 8px' }}
+                      title={isExpanded ? 'Collapse vehicle comparison' : 'View multi-vehicle feasibility analysis'}
+                    >
+                      {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    </button>
                   </div>
                 </div>
 
-                <div style={{ padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Distance</div>
-                  <div className="mono" style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff', marginTop: '2px' }}>
-                    {conn.distanceKm} km
-                  </div>
-                </div>
-
-                <div style={{ padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Truck Fleet</div>
-                  <div className="mono" style={{ fontSize: '0.95rem', fontWeight: 700, color: '#38bdf8', marginTop: '2px' }}>
-                    {conn.tripsDaily}× {conn.truckCapacityM3}m³
-                  </div>
+                {/* Collapsible Detail: Multi-Vehicle Feasibility Comparison */}
+                {isExpanded && (
                   <div
                     style={{
-                      fontSize: '0.68rem',
-                      marginTop: '1px',
-                      color: conn.truckUtilizationPct >= 90 ? '#34d399' : conn.truckUtilizationPct >= 70 ? '#fbbf24' : '#fb7185'
+                      background: '#f8fafc',
+                      borderRadius: '6px',
+                      padding: '12px 14px',
+                      border: '1px solid var(--border-light)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                      marginTop: '4px'
                     }}
                   >
-                    {conn.truckUtilizationPct}% full
-                    {conn.transportEfficiencyLossPct > 0 ? ` (−${conn.transportEfficiencyLossPct}% eff.)` : ' 🎯'}
-                  </div>
-                </div>
-              </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                      <span><strong>Corridor:</strong> {corridor.name || 'Industrial Highway'} &bull; Feasibility: <strong>{conn.easeScore || 95}%</strong></span>
+                      <span style={{ color: '#0284c7' }}>Recommended: {conn.vehicleName || 'Tri-Axle Heavy Tanker'}</span>
+                    </div>
 
-              {/* ROI Deal Economics Line */}
-              <div
-                style={{
-                  padding: '10px 12px',
-                  background: 'rgba(16, 185, 129, 0.06)',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid rgba(16, 185, 129, 0.2)',
-                  fontSize: '0.78rem',
-                  lineHeight: 1.55,
-                  color: '#cbd5e1'
-                }}
-              >
-                💸 <strong style={{ color: '#fff' }}>Deal economics:</strong> buy water at{' '}
-                <span className="mono">${conn.purchasePerM3}</span>/m³, truck it for{' '}
-                <span className="mono">${conn.transportCostPerM3}</span>/m³
-                {conn.transportEfficiencyLossPct > 0 ? ` (incl. ${conn.transportEfficiencyLossPct}% empty-space loss)` : ''}, treat
-                at <span className="mono">${conn.treatmentCostPerM3}</span>/m³ — all-in{' '}
-                <span className="mono" style={{ color: '#fff' }}>${conn.deliveredCostPerM3}</span>/m³, worth{' '}
-                <span className="mono" style={{ color: '#38bdf8' }}>${conn.valuePerM3}</span>/m³ →{' '}
-                <span className="mono" style={{ color: '#34d399', fontWeight: 700 }}>
-                  +${conn.marginPerM3}/m³ margin
-                </span>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
+                      {allOptions.map((opt, oIdx) => {
+                        const isChosen = opt.mode === conn.recommendedVehicle;
+                        return (
+                          <div
+                            key={oIdx}
+                            style={{
+                              padding: '8px 10px',
+                              borderRadius: '4px',
+                              background: '#ffffff',
+                              border: isChosen ? '1.5px solid #0284c7' : '1px solid var(--border-light)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '4px'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <strong style={{ fontSize: '0.78rem', color: isChosen ? '#0284c7' : 'var(--text-heading)' }}>
+                                {opt.shortName}
+                              </strong>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: isChosen ? '#16a34a' : '#64748b' }}>
+                                {opt.easeScore}%
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: '#64748b', lineHeight: 1.35 }}>
+                              {opt.reason}
+                            </div>
+                            <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: 'auto' }}>
+                              Trips: {opt.dailyTripsLabel}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
+
+      {/* Modal: Commute & Volume Tuner */}
+      <DistantCommuteAnalyzerModal
+        isOpen={isDistantAnalyzerOpen}
+        onClose={() => setIsDistantAnalyzerOpen(false)}
+        initialRoute={selectedRouteForAnalysis || activeConnections[0]}
+        cluster={cluster}
+        activeConnections={activeConnections}
+      />
     </div>
   );
 }

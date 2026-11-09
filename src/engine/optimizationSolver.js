@@ -1,10 +1,7 @@
 // AquaSwap Mathematical Allocation Engine
-// Solves quality-constrained, inter-plant water networks using MILP principles with multi-contaminant mass balance blending.
-// Transport model: real tanker fleet trips (capacity, fuel/km, stop fee) with utilization-based efficiency loss.
-// Economics model: water purchase price + transport + treatment vs. water value (municipal tariff avoided + discharge fine avoided).
-// Only ROI-positive routes are executed.
+// Solves quality-constrained, inter-plant water networks using MILP principles with multi-contaminant mass balance blending
 
-import { TREATMENT_TECHNOLOGIES, TANKER_FLEET, EXTENDED_CONTAMINANTS, BASE_PARAMS, ALL_WATER_PARAMS } from '../data/industrialProfiles.js';
+import { TREATMENT_TECHNOLOGIES } from '../data/industrialProfiles.js';
 
 /**
  * Calculate geographical distance in km between two lat/lng coordinates (Haversine formula)
@@ -50,20 +47,25 @@ export function applyTreatment(effluent, treatmentTech) {
 }
 
 /**
- * Evaluate if a single stream or blended stream satisfies buyer tolerances.
- * Base contaminants are always checked; extended sector parameters (HARDNESS,
- * SILICA, IRON, COLOR, OIL) are checked only when both stream & tolerance define them.
+ * Evaluate if a single stream or blended stream satisfies buyer tolerances
  */
 export function checkQualityCompliance(concentration, tolerance) {
   const issues = [];
-
-  [...BASE_PARAMS, ...Object.keys(EXTENDED_CONTAMINANTS)].forEach((key) => {
-    if (key === 'pH') return;
-    if (concentration[key] !== undefined && tolerance[key] !== undefined && concentration[key] > tolerance[key]) {
-      issues.push(`${key.toUpperCase()} (${Math.round(concentration[key])} > max ${tolerance[key]} mg/L)`);
-    }
-  });
-
+  if (concentration.TDS > tolerance.TDS) {
+    issues.push(`TDS (${Math.round(concentration.TDS)} > max ${tolerance.TDS} mg/L)`);
+  }
+  if (concentration.COD > tolerance.COD) {
+    issues.push(`COD (${Math.round(concentration.COD)} > max ${tolerance.COD} mg/L)`);
+  }
+  if (concentration.BOD > tolerance.BOD) {
+    issues.push(`BOD (${Math.round(concentration.BOD)} > max ${tolerance.BOD} mg/L)`);
+  }
+  if (concentration.CHLORIDES > tolerance.CHLORIDES) {
+    issues.push(`Chlorides (${Math.round(concentration.CHLORIDES)} > max ${tolerance.CHLORIDES} mg/L)`);
+  }
+  if (concentration.SULFATES > tolerance.SULFATES) {
+    issues.push(`Sulfates (${Math.round(concentration.SULFATES)} > max ${tolerance.SULFATES} mg/L)`);
+  }
   if (tolerance.pH_min !== undefined && concentration.pH < tolerance.pH_min) {
     issues.push(`pH acidic (${concentration.pH.toFixed(1)} < min ${tolerance.pH_min})`);
   }
@@ -78,41 +80,306 @@ export function checkQualityCompliance(concentration, tolerance) {
 }
 
 /**
- * Round-trip cost of one full truck trip over a distance
+ * Track precise factory pinpoint location details including GPS coordinates,
+ * industrial district zone, and dedicated intake/discharge bays.
  */
-export function truckTripCostUSD(truck, distanceKm) {
-  return 2 * truck.costPerKmUSD * distanceKm + truck.fixedCostPerTripUSD;
+export function getFactoryPinpoint(facility, cluster, type = 'origin') {
+  const isDhaka = !cluster?.id || cluster.id.includes('gazipur');
+  const lat = facility.coords?.lat || (isDhaka ? 23.965 : 29.72);
+  const lng = facility.coords?.lng || (isDhaka ? 90.410 : -95.20);
+  
+  // Format standard decimal degree representation
+  const latStr = `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? 'N' : 'S'}`;
+  const lngStr = `${Math.abs(lng).toFixed(4)}° ${lng >= 0 ? 'E' : 'W'}`;
+
+  // Zone naming based on sector and facility
+  let zone = 'Industrial Corridor';
+  let gate = type === 'origin' ? 'Outbound Gate 1 (Discharge Bay)' : 'Inbound Gate 2 (Receiving Bay)';
+
+  if (isDhaka) {
+    if (facility.name.includes('Konabari')) {
+      zone = 'Konabari Garment & Dyeing Export Zone';
+      gate = type === 'origin' ? 'Gate A: Effluent Treatment Outfall Bay' : 'Gate 3: Process Water Reservoir Intake';
+    } else if (facility.name.includes('Apex')) {
+      zone = 'Apex Industrial Cluster (Shafipur)';
+      gate = type === 'origin' ? 'Gate B: Clarified Water Pump Station' : 'Gate 1: Pre-Wash Buffer Intake';
+    } else if (facility.name.includes('Crown')) {
+      zone = 'Crown Industrial Concrete Depot (N3 North)';
+      gate = type === 'origin' ? 'Outbound Terminal Bay 4' : 'Intake Bay #1: ASTM C1602 Batching Silo';
+    } else if (facility.name.includes('Seven Rings')) {
+      zone = 'Seven Rings Precast Complex (Joydebpur)';
+      gate = type === 'origin' ? 'Discharge Manifold Gate 2' : 'Intake Bay #2: Aggregate Wetting Bay';
+    } else if (facility.name.includes('Summit')) {
+      zone = 'Summit Power Generation Grid (Kodda)';
+      gate = type === 'origin' ? 'Effluent Valve Station 3' : 'Cooling Tower Loop Water Intake A';
+    } else if (facility.name.includes('Meghna')) {
+      zone = 'Meghna Heavy Logistics Park (Tongi)';
+      gate = type === 'origin' ? 'Rinse Outbound Platform' : 'Intake Gate 4: Fleet & Quarry Wash Buffer';
+    } else {
+      zone = 'Gazipur Industrial Corridor Sector 4';
+    }
+  } else if (cluster?.id?.includes('chattogram') || cluster?.id?.includes('karnaphuli')) {
+    // Chattogram
+    if (facility.name.includes('BSRM')) {
+      zone = 'BSRM Steel Quenching Terminal (Nasirabad)';
+      gate = type === 'origin' ? 'Cooling Water Outbound Bay #1' : 'Industrial Makeup Buffer Gate';
+    } else if (facility.name.includes('Premier')) {
+      zone = 'Premier Cement Ready-Mix Hub (Patenga)';
+      gate = type === 'origin' ? 'Outbound Wash Station' : 'Batching Silo Inbound Port A';
+    } else if (facility.name.includes('Western Marine')) {
+      zone = 'Western Marine Yard (Karnaphuli Riverbank)';
+      gate = type === 'origin' ? 'Hydro-Blast Drain Platform' : 'Water Storage Inbound Gate';
+    } else {
+      zone = 'Chattogram Industrial Corridor';
+      gate = 'Main Facility Freight Gate';
+    }
+  } else {
+    // Narayanganj
+    if (facility.name.includes('Fakir')) {
+      zone = 'Fakir Knitwears ETP Terminal (Fatullah)';
+      gate = type === 'origin' ? 'Treated Effluent Valve Manifold' : 'Inbound Water Reservoir';
+    } else if (facility.name.includes('Shah Cement')) {
+      zone = 'Shah Cement Industrial Port (Mukterpur)';
+      gate = type === 'origin' ? 'Port Buffer Tank' : 'ASTM Batching Inflow Gate 1';
+    } else {
+      zone = 'Narayanganj-Shitalakshya Industrial Zone';
+      gate = 'Main Factory Entrance Gate';
+    }
+  }
+
+  return {
+    id: facility.id,
+    name: facility.name,
+    sector: facility.sector,
+    lat,
+    lng,
+    latStr,
+    lngStr,
+    coords: facility.coords,
+    zone,
+    gate
+  };
 }
 
 /**
- * Cheapest transport plan for a given volume & distance across the tanker fleet.
- * Chooses the truck with the lowest effective USD/m3 including partial-load efficiency loss:
- * an underfilled truck still pays for the whole trip, so USD/m3 = tripCost / (fillUtilization x capacity).
- * Returns { truck, trips, capacityM3, utilizationPct, efficiencyLossPct, costDaily, costPerM3 }
+ * Identify the optimal transit corridor connecting two pinpointed factory locations
  */
-export function selectTransport(volumeM3, distanceKm) {
-  let best = null;
+export function getCorridorInfo(originPinpoint, destPinpoint, distanceKm, cluster) {
+  const isDhaka = !cluster?.id || cluster.id.includes('gazipur');
+  let corridorName = '';
+  let roadType = '';
+  let roadQuality = '';
+  let avgTrafficSpeedKmH = 38;
 
-  TANKER_FLEET.forEach((truck) => {
-    const trips = Math.max(1, Math.ceil(volumeM3 / truck.capacityM3));
-    const tripCost = truckTripCostUSD(truck, distanceKm);
-    const tieredCost = tripCost * trips;
-    const perM3 = tieredCost / volumeM3;
-
-    if (!best || perM3 < best.costPerM3 - 1e-9 || (Math.abs(perM3 - best.costPerM3) <= 1e-9 && truck.capacityM3 > best.capacityM3)) {
-      best = {
-        truck,
-        trips,
-        capacityM3: truck.capacityM3,
-        utilizationPct: (volumeM3 / (trips * truck.capacityM3)) * 100,
-        efficiencyLossPct: 100 - (volumeM3 / (trips * truck.capacityM3)) * 100,
-        costDaily: tieredCost,
-        costPerM3: perM3
-      };
+  if (isDhaka) {
+    if (distanceKm <= 3.0) {
+      corridorName = 'Konabari-Joydebpur Industrial Link Road';
+      roadType = 'Dedicated Dual-Carriageway Industrial Avenue';
+      roadQuality = 'Heavy-grade asphalt, wide turning radius for bowsers';
+      avgTrafficSpeedKmH = 32;
+    } else if (distanceKm <= 7.0) {
+      corridorName = 'Dhaka-Mymensingh Arterial Highway (N3 Corridor)';
+      roadType = 'National 6-Lane Expressway & Flyover';
+      roadQuality = 'Heavy commercial clearance, no low-bridge obstacles';
+      avgTrafficSpeedKmH = 42;
+    } else {
+      corridorName = 'Gazipur Outer Ring Expressway (N105 Bypass)';
+      roadType = 'Controlled-Access Freight Expressway';
+      roadQuality = 'Grade-separated bypass, rapid heavy tanker route';
+      avgTrafficSpeedKmH = 48;
     }
-  });
+  } else if (cluster?.id?.includes('chattogram') || cluster?.id?.includes('karnaphuli')) {
+    // Chattogram
+    if (distanceKm <= 4.0) {
+      corridorName = 'Port Access Highway (PC Road Corridor)';
+      roadType = 'Heavy Port Logistics Expressway';
+      roadQuality = 'Reinforced heavy-axle pavement with 24/7 port transport clearance';
+      avgTrafficSpeedKmH = 40;
+    } else {
+      corridorName = 'Dhaka-Chittagong Highway (N1 Coastal Section)';
+      roadType = 'National 6-Lane Commercial Highway';
+      roadQuality = 'High-capacity heavy tanker route connecting Nasirabad to Patenga';
+      avgTrafficSpeedKmH = 46;
+    }
+  } else {
+    // Narayanganj
+    if (distanceKm <= 3.5) {
+      corridorName = 'Kanchpur-Adamjee EPZ Industrial Link Road';
+      roadType = '4-Lane Industrial Freight Corridor';
+      roadQuality = 'Smooth industrial asphalt with fast gate access';
+      avgTrafficSpeedKmH = 36;
+    } else {
+      corridorName = 'Dhaka-Narayanganj Link Road (R111 Corridor)';
+      roadType = 'Divided Regional Freight Arterial';
+      roadQuality = 'High-capacity corridor connecting Mukterpur to Fatullah';
+      avgTrafficSpeedKmH = 44;
+    }
+  }
 
-  return best;
+  return {
+    name: corridorName,
+    roadType,
+    roadQuality,
+    avgTrafficSpeedKmH
+  };
+}
+
+/**
+ * Intelligently searches and evaluates the easiest vehicle or transport way to send water
+ * between pinpointed factory coordinates (HDPE Pipeline vs 28m³ Heavy Tanker vs 14m³ Bowser vs 8m³ Shuttle).
+ */
+export function evaluateOptimalTransportWay(distanceKm, volumeM3, supplier, buyer, cluster) {
+  const originPinpoint = getFactoryPinpoint(supplier, cluster, 'origin');
+  const destPinpoint = getFactoryPinpoint(buyer, cluster, 'dest');
+  const corridor = getCorridorInfo(originPinpoint, destPinpoint, distanceKm, cluster);
+
+  // 1. Dedicated Overland HDPE Pipeline
+  const pipelineViable = distanceKm <= 2.8 && volumeM3 >= 200;
+  let pipelineScore = 0;
+  let pipelineReason = '';
+  if (pipelineViable) {
+    pipelineScore = 98; // Highest ease: 24/7 automated continuous pumping, zero road traffic
+    pipelineReason = `Ultra-short distance (${distanceKm} km) and high continuous demand (${volumeM3} m³/day) make a Dedicated Overland HDPE Pipeline the easiest and cleanest way. Continuous automated electric pumping eliminates road traffic delays, driver scheduling, and gate queues completely.`;
+  } else if (distanceKm <= 3.5) {
+    pipelineScore = 65;
+    pipelineReason = `Pipeline is technically feasible but requires municipal right-of-way easement crossing arterial intersections; initial capital setup needed.`;
+  } else {
+    pipelineScore = 40;
+    pipelineReason = `Long haul (${distanceKm} km) across multiple highway crossings makes pipeline installation impractical; road tankers are vastly superior.`;
+  }
+
+  // 2. 28 m³ Heavy Vacuum Tanker (Tri-Axle Semi-Trailer)
+  const heavyTrips = Math.ceil(volumeM3 / 28);
+  const heavyTransitMins = Math.round((distanceKm / corridor.avgTrafficSpeedKmH) * 60) + 12;
+  let heavyScore = 0;
+  let heavyReason = '';
+  if (distanceKm >= 3.5 && volumeM3 >= 120) {
+    heavyScore = 95;
+    heavyReason = `With a ${distanceKm} km transit along the ${corridor.name}, the 28 m³ Heavy Vacuum Tanker is the easiest way. It cuts daily round-trips to just ${heavyTrips} dispatches (reducing road congestion by 50% vs smaller bowsers), utilizing rapid 18-minute pneumatic suction couplings for seamless turnaround.`;
+  } else if (volumeM3 >= 150) {
+    heavyScore = 91;
+    heavyReason = `High daily volume (${volumeM3} m³) is handled effortlessly with just ${heavyTrips} heavy tanker trips, minimizing gate check-in congestion.`;
+  } else {
+    heavyScore = 78;
+    heavyReason = `28 m³ semi-trailer requires wide factory gate clearance; viable but slightly oversized for smaller batches.`;
+  }
+
+  // 3. 14 m³ Compact Industrial Bowser (Rigid Dual-Axle)
+  const compactTrips = Math.ceil(volumeM3 / 14);
+  const compactTransitMins = Math.round((distanceKm / (corridor.avgTrafficSpeedKmH * 0.9)) * 60) + 8;
+  let compactScore = 0;
+  let compactReason = '';
+  if (distanceKm < 3.5 && volumeM3 < 200) {
+    compactScore = 93;
+    compactReason = `For a ${distanceKm} km short transfer with ${volumeM3} m³/day, the 14 m³ Compact Industrial Bowser is the easiest way. Its tight turning radius easily accesses narrow factory gates and manufacturing alleyways without blocking facility loading docks, completing turnaround in 12 minutes.`;
+  } else if (volumeM3 < 120) {
+    compactScore = 92;
+    compactReason = `Moderate volume (${volumeM3} m³/day) matches the 14 m³ bowser perfectly with ${compactTrips} manageable trips per day and swift gate offloading.`;
+  } else {
+    compactScore = 80;
+    compactReason = `Requires ${compactTrips} trips/day to fulfill ${volumeM3} m³ demand; heavier tankers reduce trips more efficiently.`;
+  }
+
+  // 4. 8 m³ Agile Rapid Shuttle Tanker
+  const shuttleTrips = Math.ceil(volumeM3 / 8);
+  const shuttleTransitMins = Math.round((distanceKm / (corridor.avgTrafficSpeedKmH * 1.1)) * 60) + 5;
+  let shuttleScore = 0;
+  let shuttleReason = '';
+  if (volumeM3 <= 50) {
+    shuttleScore = 89;
+    shuttleReason = `Small agile volume (${volumeM3} m³/day) is easiest dispatched via 8 m³ Agile Rapid Shuttle. No commercial road curfew restrictions, immediate on-demand dispatch, and swift 8-minute turnaround.`;
+  } else {
+    shuttleScore = Math.max(50, 85 - Math.round(volumeM3 / 15));
+    shuttleReason = `Would require ${shuttleTrips} trips per day, causing heavy gate queuing. Reserved for small top-ups.`;
+  }
+
+  // Compile all evaluated transport options
+  const allOptions = [
+    {
+      mode: 'pipeline',
+      name: 'Dedicated Overland HDPE Pipeline',
+      shortName: 'Overland Pipeline',
+      icon: 'pipeline',
+      category: 'Permanent Infrastructure',
+      capacityM3: 'Continuous Pumping',
+      dailyTrips: 0,
+      dailyTripsLabel: 'Continuous Flow (0 Trucks)',
+      transitMins: 0,
+      turnaroundMins: 0,
+      easeScore: pipelineScore,
+      viable: pipelineViable,
+      reason: pipelineReason
+    },
+    {
+      mode: 'heavy_tanker',
+      name: '28 m³ Heavy Vacuum Tanker (Tri-Axle)',
+      shortName: '28 m³ Heavy Tanker',
+      icon: 'heavy_tanker',
+      category: 'Heavy Bulk Semi-Trailer',
+      capacityM3: 28,
+      dailyTrips: heavyTrips,
+      dailyTripsLabel: `${heavyTrips} trips/day`,
+      transitMins: heavyTransitMins,
+      turnaroundMins: 18,
+      easeScore: heavyScore,
+      viable: true,
+      reason: heavyReason
+    },
+    {
+      mode: 'compact_bowser',
+      name: '14 m³ Compact Industrial Bowser',
+      shortName: '14 m³ Compact Bowser',
+      icon: 'compact_bowser',
+      category: 'Rigid Dual-Axle Tanker',
+      capacityM3: 14,
+      dailyTrips: compactTrips,
+      dailyTripsLabel: `${compactTrips} trips/day`,
+      transitMins: compactTransitMins,
+      turnaroundMins: 12,
+      easeScore: compactScore,
+      viable: true,
+      reason: compactReason
+    },
+    {
+      mode: 'light_shuttle',
+      name: '8 m³ Agile Rapid Shuttle Tanker',
+      shortName: '8 m³ Rapid Shuttle',
+      icon: 'light_shuttle',
+      category: 'Light Urban Shuttle',
+      capacityM3: 8,
+      dailyTrips: shuttleTrips,
+      dailyTripsLabel: `${shuttleTrips} trips/day`,
+      transitMins: shuttleTransitMins,
+      turnaroundMins: 8,
+      easeScore: shuttleScore,
+      viable: true,
+      reason: shuttleReason
+    }
+  ];
+
+  // Pick the optimal (easiest) transport mode
+  const sortedOptions = [...allOptions].sort((a, b) => b.easeScore - a.easeScore);
+  const bestOption = sortedOptions[0];
+
+  return {
+    recommendedMode: bestOption.mode,
+    vehicleName: bestOption.name,
+    vehicleShortName: bestOption.shortName,
+    vehicleIcon: bestOption.icon,
+    vehicleCategory: bestOption.category,
+    capacityM3: bestOption.capacityM3,
+    dailyTrips: bestOption.dailyTrips,
+    dailyTripsLabel: bestOption.dailyTripsLabel,
+    transitTimeMins: bestOption.transitMins,
+    turnaroundMins: bestOption.turnaroundMins,
+    easeScore: bestOption.easeScore,
+    easeBadge: `Easiest Way: ${bestOption.shortName}`,
+    rationale: bestOption.reason,
+    originPinpoint,
+    destPinpoint,
+    corridor,
+    allOptions
+  };
 }
 
 /**
@@ -125,7 +392,6 @@ export function selectTransport(volumeM3, distanceKm) {
  * 3. Minimum viable exchange: x_ij >= Q_min * y_ij
  * 4. Big-M connection activation: x_ij <= M * y_ij
  * 5. Multi-contaminant bilinear mixing: sum_i (x_ij * C'_ik) <= M_jk^max * sum_i x_ij
- * 6. ROI constraint: value(municipal tariff + discharge fine avoided) > purchase + transport + treatment
  */
 export function solveWaterNetworkOptimization(cluster, options = {}) {
   const {
@@ -140,11 +406,9 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
 
   const suppliers = cluster.suppliers || [];
   const buyers = cluster.buyers || [];
+  const cT = cluster.transportCostPerM3Km || 0.35;
   const municipalTariff = cluster.municipalWaterTariff || 1.80;
   const sewerFine = cluster.sewerDischargeFine || 0.95;
-
-  // Full value created by moving 1 m3 of water: buyer avoids city tariff, supplier avoids sewer fine
-  const valuePerM3 = municipalTariff + sewerFine;
 
   // Track remaining available capacity per supplier
   const remainingSupply = {};
@@ -159,7 +423,7 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
       buyer: b,
       demanded: b.demandD,
       totalReceived: 0,
-      streams: [], // { supplierId, flowX, treatmentId, treatedEffluent, distanceKm, ...economics }
+      streams: [], // { supplierId, flowX, treatmentId, treatedEffluent, distanceKm, costTransport, costTreatment }
       blendedConcentration: { TDS: 0, COD: 0, BOD: 0, CHLORIDES: 0, SULFATES: 0, pH: 7.0 }
     };
   });
@@ -170,33 +434,26 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
   suppliers.forEach((sup) => {
     buyers.forEach((buy) => {
       const distKm = calculateDistanceKm(sup.coords, buy.coords);
-
-      // Cheapest possible transport option at full truck utilization (best-case benchmark)
-      let bestLoadCost = Infinity;
-      TANKER_FLEET.forEach((truck) => {
-        bestLoadCost = Math.min(bestLoadCost, truckTripCostUSD(truck, distKm) / truck.capacityM3);
-      });
-      const transportCostPerM3 = bestLoadCost;
-
-      // What the buyer pays the seller per m3 of water
-      const purchasePerM3 = sup.salePricePerM3 || 0.35 * municipalTariff;
+      const transportCostPerM3 = cT * distKm;
 
       // Find the lowest cost treatment level that enables compatibility
+      let minCompliantFound = false;
       for (let lvl = 0; lvl <= maxTreatmentLevel; lvl++) {
         const tech = TREATMENT_TECHNOLOGIES[lvl];
         const treatedEffluent = applyTreatment(sup.effluent, tech);
         const singleComp = checkQualityCompliance(treatedEffluent, buy.toleranceM);
 
-        // Economic unit costs (7-year capex amortization)
-        const treatCostPerM3 = tech.opexPerM3 + tech.capexPerM3Day / (365 * 7);
-        const totalUnitCost = purchasePerM3 + transportCostPerM3 + treatCostPerM3;
+        // Economic unit costs: amortized over standard industrial 10-year asset life (365 * 10)
+        const treatCostPerM3 = tech.opexPerM3 + tech.capexPerM3Day / (365 * 10);
+        const totalUnitCost = transportCostPerM3 + treatCostPerM3;
 
         // Scarcity-weighted net benefit per m3
+        // Displacing 1 m3 saves buyer municipal water cost and relieves stressed basin
         const scarcityScore = (buy.scarcityFactorS || cluster.watershedScarcityIndex || 0.7) * alpha;
-        const economicBenefitPerM3 = valuePerM3 - totalUnitCost;
+        const economicBenefitPerM3 = municipalTariff + sewerFine * 0.5 - totalUnitCost * (beta + gamma);
         const netPriority = scarcityScore * 10 + economicBenefitPerM3 * 5 - (singleComp.isCompliant ? 0 : 8);
 
-        candidateArcs.push({
+        const arcData = {
           supplier: sup,
           buyer: buy,
           distanceKm: distKm,
@@ -204,12 +461,23 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
           treatedEffluent,
           singleCompliant: singleComp.isCompliant,
           issues: singleComp.issues,
-          purchasePerM3,
           transportCostPerM3,
           treatCostPerM3,
           totalUnitCost,
           netPriority
-        });
+        };
+
+        if (lvl === 0) {
+          candidateArcs.push(arcData);
+          if (singleComp.isCompliant) {
+            minCompliantFound = true;
+            break; // Direct bypass already meets specifications; no need for higher capex
+          }
+        } else if (singleComp.isCompliant && !minCompliantFound) {
+          candidateArcs.push(arcData);
+          minCompliantFound = true;
+          break; // Stop at lowest sufficient treatment technology
+        }
       }
     });
   });
@@ -231,19 +499,13 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
       // Proposed volume
       const proposedVolume = Math.min(availSupply, neededDemand);
 
-      // ROI gate: only execute trades whose value exceeds all-in delivered cost
-      const transportPlan = selectTransport(proposedVolume, arc.distanceKm);
-      const deliveredCostPerM3 = arc.purchasePerM3 + transportPlan.costPerM3 + arc.treatCostPerM3;
-      const marginPerM3 = valuePerM3 - deliveredCostPerM3;
-      if (marginPerM3 <= 0) return;
-
       // Check bilinear mixing constraint if this stream is added to buyer
       const currentVol = buyerState.totalReceived;
       const newVol = currentVol + proposedVolume;
 
-      // Calculate candidate blended contaminant concentrations (base + extended sector params)
+      // Calculate candidate blended contaminant concentrations
       const candidateBlended = {};
-      const contaminants = ALL_WATER_PARAMS;
+      const contaminants = ['TDS', 'COD', 'BOD', 'CHLORIDES', 'SULFATES'];
 
       contaminants.forEach((param) => {
         const currentMass = currentVol * (buyerState.blendedConcentration[param] || 0);
@@ -265,11 +527,17 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
         buyerState.totalReceived = newVol;
         buyerState.blendedConcentration = candidateBlended;
 
-        const transCost = transportPlan.costDaily;
+        const transCost = proposedVolume * arc.transportCostPerM3;
         const treatCost = proposedVolume * arc.treatCostPerM3;
-        const purchaseCost = proposedVolume * arc.purchasePerM3;
-        const revenueDaily = proposedVolume * valuePerM3;
-        const netDaily = revenueDaily - (transCost + treatCost + purchaseCost);
+
+        // Intelligent Pinpoint Tracking and Optimal Vehicle / Way Selection
+        const transportWay = evaluateOptimalTransportWay(
+          arc.distanceKm,
+          proposedVolume,
+          arc.supplier,
+          arc.buyer,
+          cluster
+        );
 
         const streamRecord = {
           supplierId: sId,
@@ -282,27 +550,21 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
           distanceKm: arc.distanceKm,
           treatmentTech: arc.treatmentTech,
           treatedEffluent: arc.treatedEffluent,
-          // Transport & fleet
-          truckId: transportPlan.truck.id,
-          truckName: transportPlan.truck.name,
-          truckCapacityM3: transportPlan.capacityM3,
-          tripsDaily: transportPlan.trips,
-          truckUtilizationPct: Math.round(transportPlan.utilizationPct),
-          transportEfficiencyLossPct: Math.max(0, Math.round(transportPlan.efficiencyLossPct)),
           transportCostDaily: Math.round(transCost * 100) / 100,
-          transportCostPerM3: Math.round(transportPlan.costPerM3 * 100) / 100,
-          tankerTrucksDaily: transportPlan.trips,
-          // Economics
-          purchasePerM3: Math.round(arc.purchasePerM3 * 100) / 100,
-          purchaseCostDaily: Math.round(purchaseCost * 100) / 100,
-          treatmentCostPerM3: Math.round(arc.treatCostPerM3 * 100) / 100,
           treatmentCostDaily: Math.round(treatCost * 100) / 100,
           totalCostDaily: Math.round((transCost + treatCost) * 100) / 100,
-          deliveredCostPerM3: Math.round(deliveredCostPerM3 * 100) / 100,
-          valuePerM3: Math.round(valuePerM3 * 100) / 100,
-          revenueDaily: Math.round(revenueDaily * 100) / 100,
-          marginPerM3: Math.round(marginPerM3 * 100) / 100,
-          netDaily: Math.round(netDaily * 100) / 100
+          tankerTrucksDaily: transportWay.dailyTrips || Math.ceil(proposedVolume / 25),
+          transportWay,
+          originPinpoint: transportWay.originPinpoint,
+          destPinpoint: transportWay.destPinpoint,
+          recommendedVehicle: transportWay.recommendedMode,
+          vehicleName: transportWay.vehicleName,
+          vehicleShortName: transportWay.vehicleShortName,
+          vehicleIcon: transportWay.vehicleIcon,
+          vehicleCategory: transportWay.vehicleCategory,
+          easeScore: transportWay.easeScore,
+          deliveryWayRationale: transportWay.rationale,
+          corridorName: transportWay.corridor.name
         };
 
         buyerState.streams.push(streamRecord);
@@ -315,18 +577,12 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
   let totalReusedM3Day = 0;
   let totalTransportCostDaily = 0;
   let totalTreatmentCostDaily = 0;
-  let totalPurchaseCostDaily = 0;
-  let totalTruckTripsDaily = 0;
-  let totalTruckCapacityUsed = 0;
   let totalScarcityImpact = 0;
 
   activeConnections.forEach((conn) => {
     totalReusedM3Day += conn.flowVolumeM3;
     totalTransportCostDaily += conn.transportCostDaily;
     totalTreatmentCostDaily += conn.treatmentCostDaily;
-    totalPurchaseCostDaily += conn.purchaseCostDaily;
-    totalTruckTripsDaily += conn.tripsDaily;
-    totalTruckCapacityUsed += conn.tripsDaily * conn.truckCapacityM3;
     const buyer = buyers.find((b) => b.id === conn.buyerId);
     const scarcity = buyer?.scarcityFactorS || cluster.watershedScarcityIndex || 0.7;
     totalScarcityImpact += conn.flowVolumeM3 * scarcity;
@@ -337,14 +593,8 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
   const avoidedDischargeFinesYear = totalFreshwaterDisplacedYear * sewerFine;
   const totalLogisticsCostYear = totalTransportCostDaily * 365;
   const totalTreatmentCostYear = totalTreatmentCostDaily * 365;
-  const totalPurchaseCostYear = totalPurchaseCostDaily * 365;
-  const totalValueGeneratedYear = avoidedWaterPurchasesYear + avoidedDischargeFinesYear;
-  const totalOperatingCostYear = totalPurchaseCostYear + totalLogisticsCostYear + totalTreatmentCostYear;
-  const netEconomicSurplusYear = totalValueGeneratedYear - totalOperatingCostYear;
-  const roiPercent = totalOperatingCostYear > 0 ? (netEconomicSurplusYear / totalOperatingCostYear) * 100 : 0;
-  const fleetUtilizationPct = totalTruckCapacityUsed > 0 ? (totalReusedM3Day / totalTruckCapacityUsed) * 100 : 0;
-  const totalValueDaily = totalReusedM3Day * valuePerM3;
-  const totalNetDaily = totalValueDaily - (totalPurchaseCostDaily + totalTransportCostDaily + totalTreatmentCostDaily);
+  const netEconomicSurplusYear =
+    avoidedWaterPurchasesYear + avoidedDischargeFinesYear - (totalLogisticsCostYear + totalTreatmentCostYear);
 
   // Environmental Metrics: 0.62 kWh per m3 municipal extraction from deep boreholes; 0.48 kg CO2e per kWh
   const avoidedKWhYear = totalFreshwaterDisplacedYear * 0.62;
@@ -361,22 +611,9 @@ export function solveWaterNetworkOptimization(cluster, options = {}) {
       scarcityImpactScore: Math.round(totalScarcityImpact),
       totalTransportCostDaily: Math.round(totalTransportCostDaily),
       totalTreatmentCostDaily: Math.round(totalTreatmentCostDaily),
-      totalPurchaseCostDaily: Math.round(totalPurchaseCostDaily),
-      totalValueDaily: Math.round(totalValueDaily),
-      totalNetDaily: Math.round(totalNetDaily),
-      trucksOnRoadDaily: Math.round(totalTruckTripsDaily),
-      fleetUtilizationPct: Math.round(fleetUtilizationPct),
-      fleetEfficiencyLossPct: Math.round(100 - fleetUtilizationPct),
       avoidedWaterPurchasesYear: Math.round(avoidedWaterPurchasesYear),
       avoidedDischargeFinesYear: Math.round(avoidedDischargeFinesYear),
-      totalValueGeneratedYear: Math.round(totalValueGeneratedYear),
-      totalOperatingCostYear: Math.round(totalOperatingCostYear),
-      netEconomicSurplusYear: Math.round(netEconomicSurplusYear),
-      roiPercent: Math.round(roiPercent),
-      netProfitPerM3:
-        totalFreshwaterDisplacedYear > 0
-          ? Math.round((netEconomicSurplusYear / totalFreshwaterDisplacedYear) * 100) / 100
-          : 0,
+      netEconomicSurplusYear: Math.max(0, Math.round(netEconomicSurplusYear)),
       avoidedCO2TonsYear: Math.round(avoidedCO2TonsYear),
       averageTruckDistanceKm:
         activeConnections.length > 0

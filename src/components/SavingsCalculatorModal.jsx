@@ -19,7 +19,6 @@ export default function SavingsCalculatorModal({
   cluster,
   onOpenAddFacility
 }) {
-  if (!isOpen) return null;
 
   const [industryType, setIndustryType] = useState('textile'); // 'textile', 'food', 'concrete', 'chemical'
   const [dailyVolume, setDailyVolume] = useState(500); // m3/day
@@ -58,9 +57,9 @@ export default function SavingsCalculatorModal({
   const reusableVolumeDaily = Math.round(dailyVolume * currentProfile.recyclePotential);
   const annualReusableVolume = reusableVolumeDaily * 365;
 
-  // AquaSwap pricing model: Reused water trades at ~$0.75/m3 (transport + treatment)
-  const aquaSwapCostPerM3 = 0.75;
-  const grossSavingsPerM3 = Math.max(0.2, currentTariff - aquaSwapCostPerM3);
+  // AquaSwap pricing model: Reused water trades at ~৳20/m3 (transport + treatment)
+  const aquaSwapCostPerM3 = 20.0;
+  const grossSavingsPerM3 = Math.max(5.0, currentTariff - aquaSwapCostPerM3);
 
   // Financial calculations
   const annualWaterPurchaseSavings = Math.round(annualReusableVolume * grossSavingsPerM3);
@@ -75,6 +74,8 @@ export default function SavingsCalculatorModal({
   const olympicPools = Math.round(annualReusableVolume / 2500);
   const householdsDaily = Math.round((reusableVolumeDaily * 1000) / 120);
 
+  if (!isOpen) return null;
+
   return (
     <div
       style={{
@@ -83,8 +84,8 @@ export default function SavingsCalculatorModal({
         left: 0,
         right: 0,
         bottom: 0,
-        background: 'rgba(5, 8, 15, 0.85)',
-        backdropFilter: 'blur(10px)',
+        background: 'rgba(15, 23, 42, 0.45)',
+        backdropFilter: 'blur(4px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -100,10 +101,11 @@ export default function SavingsCalculatorModal({
           maxWidth: '740px',
           maxHeight: '92vh',
           overflowY: 'auto',
-          background: '#0d1322',
-          border: '1px solid rgba(16, 185, 129, 0.35)',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7)',
-          padding: '26px',
+          background: '#ffffff',
+          border: '1px solid var(--border-light)',
+          boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.12)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '28px',
           display: 'flex',
           flexDirection: 'column',
           gap: '20px'
@@ -111,28 +113,27 @@ export default function SavingsCalculatorModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-light)', paddingBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div
               style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, #10b981 0%, #0ea5e9 100%)',
+                width: '38px',
+                height: '38px',
+                borderRadius: '8px',
+                background: '#e0f2fe',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
+                justifyContent: 'center'
               }}
             >
-              <Calculator size={22} color="#fff" />
+              <Calculator size={20} color="#0284c7" />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff' }}>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
                 Factory Water Savings & ROI Calculator
               </h2>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Calculate annual cash savings and payback time in 30 seconds
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+                Calculate annual operating savings and capital payback schedule
               </p>
             </div>
           </div>
@@ -151,8 +152,8 @@ export default function SavingsCalculatorModal({
           
           {/* Industry Type */}
           <div>
-            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
-              Your Factory Industry:
+            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '8px', fontWeight: 600 }}>
+              Facility Industry Sector:
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <button
@@ -161,7 +162,7 @@ export default function SavingsCalculatorModal({
                 onClick={() => setIndustryType('textile')}
                 style={{ fontSize: '0.78rem', justifyContent: 'center' }}
               >
-                👕 Textile Mill
+                Textile Processing
               </button>
               <button
                 type="button"
@@ -169,7 +170,7 @@ export default function SavingsCalculatorModal({
                 onClick={() => setIndustryType('food')}
                 style={{ fontSize: '0.78rem', justifyContent: 'center' }}
               >
-                🥤 Food / Beverage
+                Food & Beverage
               </button>
               <button
                 type="button"
@@ -177,7 +178,7 @@ export default function SavingsCalculatorModal({
                 onClick={() => setIndustryType('concrete')}
                 style={{ fontSize: '0.78rem', justifyContent: 'center' }}
               >
-                🧱 Concrete Batching
+                Ready-Mix Concrete
               </button>
               <button
                 type="button"
@@ -185,16 +186,16 @@ export default function SavingsCalculatorModal({
                 onClick={() => setIndustryType('chemical')}
                 style={{ fontSize: '0.78rem', justifyContent: 'center' }}
               >
-                🧪 Chemical / Pharma
+                Chemical / Pharma
               </button>
             </div>
           </div>
 
           {/* Daily Water Volume */}
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '8px', fontWeight: 600 }}>
               <span style={{ color: 'var(--text-muted)' }}>Daily Water Usage:</span>
-              <span className="mono" style={{ color: '#38bdf8', fontWeight: 600 }}>{dailyVolume} m³/day</span>
+              <span className="mono" style={{ color: '#0284c7', fontWeight: 700 }}>{dailyVolume} m³/day</span>
             </div>
             <input
               type="range"
@@ -203,8 +204,9 @@ export default function SavingsCalculatorModal({
               step="25"
               value={dailyVolume}
               onChange={(e) => setDailyVolume(parseInt(e.target.value, 10))}
+              style={{ width: '100%', accentColor: '#0284c7', cursor: 'pointer' }}
             />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
               <span>Small plant (50 m³)</span>
               <span>Large plant (2,000 m³)</span>
             </div>
@@ -213,28 +215,28 @@ export default function SavingsCalculatorModal({
 
         {/* Tariffs and Local Benchmark */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-          <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Current City Water Tariff ($/m³)</div>
-            <div className="mono" style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff', marginTop: '2px' }}>
-              ${currentTariff.toFixed(2)} / m³
+          <div style={{ padding: '14px', background: '#f8fafc', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Municipal Water Tariff (৳/m³)</div>
+            <div className="mono" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '4px' }}>
+              ৳ {currentTariff.toFixed(0)} / m³
             </div>
           </div>
 
-          <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>AquaSwap Exchange Tariff ($/m³)</div>
-            <div className="mono" style={{ fontSize: '1.2rem', fontWeight: 700, color: '#34d399', marginTop: '2px' }}>
-              ${aquaSwapCostPerM3.toFixed(2)} / m³ <span style={{ fontSize: '0.75rem', color: '#34d399' }}>(-58%)</span>
+          <div style={{ padding: '14px', background: '#f8fafc', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>AquaSwap Exchange Tariff (৳/m³)</div>
+            <div className="mono" style={{ fontSize: '1.25rem', fontWeight: 800, color: '#059669', marginTop: '4px' }}>
+              ৳ {aquaSwapCostPerM3.toFixed(0)} / m³ <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600 }}>(-58%)</span>
             </div>
           </div>
         </div>
 
-        {/* Big ROI Results Banner */}
+        {/* ROI Results Banner */}
         <div
           style={{
             padding: '20px',
             borderRadius: 'var(--radius-md)',
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(14, 165, 233, 0.12) 100%)',
-            border: '1px solid rgba(16, 185, 129, 0.4)',
+            background: '#f0fdf4',
+            border: '1px solid #bbf7d0',
             display: 'flex',
             flexDirection: 'column',
             gap: '16px'
@@ -242,59 +244,60 @@ export default function SavingsCalculatorModal({
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
             <div>
-              <span className="status-pill status-emerald">Projected Financial ROI</span>
-              <div className="mono" style={{ fontSize: '2rem', fontWeight: 800, color: '#34d399', marginTop: '4px' }}>
-                ${totalAnnualBenefit.toLocaleString()} <span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/ year</span>
+              <span className="status-pill status-emerald" style={{ fontWeight: 700 }}>Projected Financial ROI</span>
+              <div className="mono" style={{ fontSize: '1.85rem', fontWeight: 900, color: '#059669', marginTop: '4px' }}>
+                ৳ {totalAnnualBenefit.toLocaleString()} <span style={{ fontSize: '0.95rem', color: 'var(--text-muted)', fontWeight: 500 }}>/ year</span>
               </div>
-              <div style={{ fontSize: '0.8rem', color: '#cbd5e1' }}>
-                Estimated total annual net financial gain from water savings & fine avoidance
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', marginTop: '2px' }}>
+                Estimated annual net financial gain from water savings and regulatory fine avoidance
               </div>
             </div>
 
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Equipment Payback Period</div>
-              <div className="mono" style={{ fontSize: '1.6rem', fontWeight: 700, color: '#38bdf8' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Equipment Payback</div>
+              <div className="mono" style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0284c7', marginTop: '2px' }}>
                 {paybackMonths} months
               </div>
-              <div style={{ fontSize: '0.72rem', color: '#34d399' }}>Rapid positive cash flow</div>
+              <div style={{ fontSize: '0.72rem', color: '#059669', fontWeight: 600 }}>Rapid positive cash flow</div>
             </div>
           </div>
 
           {/* Breakdown Pills */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-            <div style={{ padding: '10px', background: 'rgba(0,0,0,0.25)', borderRadius: 'var(--radius-sm)' }}>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Water Bill Cut</div>
-              <div className="mono" style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', marginTop: '2px' }}>
-                ${annualWaterPurchaseSavings.toLocaleString()}
+            <div style={{ padding: '12px', background: '#ffffff', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Water Bill Reduction</div>
+              <div className="mono" style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '2px' }}>
+                ৳ {annualWaterPurchaseSavings.toLocaleString()}
               </div>
             </div>
 
-            <div style={{ padding: '10px', background: 'rgba(0,0,0,0.25)', borderRadius: 'var(--radius-sm)' }}>
+            <div style={{ padding: '12px', background: '#ffffff', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Avoided Sewer Fines</div>
-              <div className="mono" style={{ fontSize: '1.1rem', fontWeight: 700, color: '#34d399', marginTop: '2px' }}>
-                ${annualAvoidedFines.toLocaleString()}
+              <div className="mono" style={{ fontSize: '1.1rem', fontWeight: 800, color: '#059669', marginTop: '2px' }}>
+                ৳ {annualAvoidedFines.toLocaleString()}
               </div>
             </div>
 
-            <div style={{ padding: '10px', background: 'rgba(0,0,0,0.25)', borderRadius: 'var(--radius-sm)' }}>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Freshwater Saved</div>
-              <div className="mono" style={{ fontSize: '1.1rem', fontWeight: 700, color: '#38bdf8', marginTop: '2px' }}>
+            <div style={{ padding: '12px', background: '#ffffff', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Freshwater Conserved</div>
+              <div className="mono" style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0284c7', marginTop: '2px' }}>
                 {annualReusableVolume.toLocaleString()} m³
               </div>
             </div>
           </div>
 
-          <div style={{ fontSize: '0.78rem', color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>🏊 ≈ <strong>{olympicPools}</strong> Olympic swimming pools saved annually</span>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Droplets size={14} color="#0284c7" />
+            <span>Preserves <strong>{annualReusableVolume.toLocaleString()} m³</strong> of deep groundwater annually</span>
             <span>•</span>
-            <span>💧 Supplies daily water for <strong>{householdsDaily.toLocaleString()}</strong> people</span>
+            <span>Equivalent to municipal consumption for <strong>{householdsDaily.toLocaleString()}</strong> residents</span>
           </div>
         </div>
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', borderTop: '1px solid var(--border-light)', paddingTop: '16px' }}>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            Best partner fit for your effluent: <strong style={{ color: '#fff' }}>{currentProfile.reusableFor}</strong>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Optimal reuse matching for effluent: <strong style={{ color: 'var(--text-main)' }}>{currentProfile.reusableFor}</strong>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -308,8 +311,8 @@ export default function SavingsCalculatorModal({
                 if (onOpenAddFacility) onOpenAddFacility();
               }}
             >
-              <Sparkles size={14} />
-              <span>Onboard My Factory Now</span>
+              <ArrowRight size={14} />
+              <span>Register Facility Now</span>
             </button>
           </div>
         </div>

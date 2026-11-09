@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -9,89 +9,160 @@ import HomePage from './pages/HomePage';
 import OptimizerPage from './pages/OptimizerPage';
 import BlenderPage from './pages/BlenderPage';
 import FleetPage from './pages/FleetPage';
+import MatchmakerPage from './pages/MatchmakerPage';
 import CompliancePage from './pages/CompliancePage';
+import ESGPage from './pages/ESGPage';
 
 // Modals
 import FacilityManagerModal from './components/FacilityManagerModal';
 import HowItWorksModal from './components/HowItWorksModal';
-import SavingsCalculatorModal from './components/SavingsCalculatorModal';
 import ESGCertificateModal from './components/ESGCertificateModal';
 import AuthModal from './components/AuthModal';
 
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { apiFetch } from './api';
-
 import { INDUSTRIAL_CLUSTERS } from './data/industrialProfiles';
 import { solveWaterNetworkOptimization } from './engine/optimizationSolver';
+import { clustersAPI, facilitiesAPI, authAPI } from './services/api';
 
 export default function App() {
-  return (
-    <AuthProvider>
-      <AppShell />
-    </AuthProvider>
-  );
-}
-
-function AppShell() {
-  const { user, authReady, logout } = useAuth();
-  const navigate = useNavigate();
   const [clusters, setClusters] = useState(INDUSTRIAL_CLUSTERS);
-  const [selectedCluster, setSelectedCluster] = useState(INDUSTRIAL_CLUSTERS[0]);
+  const [selectedCluster, setSelectedCluster] = useState(() => {
+    try {
+      const savedId = localStorage.getItem('aquaswap_cluster_id');
+      if (savedId) {
+        const found = INDUSTRIAL_CLUSTERS.find((c) => c.id === savedId);
+        if (found) return found;
+      }
+    } catch (e) {}
+    return INDUSTRIAL_CLUSTERS[0];
+  });
+
+  const handleSelectCluster = (cluster) => {
+    setSelectedCluster(cluster);
+    try {
+      localStorage.setItem('aquaswap_cluster_id', cluster.id);
+    } catch (e) {}
+  };
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [pendingRegister, setPendingRegister] = useState(false);
+  const [addFacilityInitialType, setAddFacilityInitialType] = useState('supplier');
   const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
-  const [isSavingsCalculatorOpen, setIsSavingsCalculatorOpen] = useState(false);
   const [isESGCertificateOpen, setIsESGCertificateOpen] = useState(false);
   const [selectedMatchForWPA, setSelectedMatchForWPA] = useState(null);
-  const [blenderFocusId, setBlenderFocusId] = useState(null);
-  const [blenderFocusBuyerId, setBlenderFocusBuyerId] = useState(null);
 
-  // Register Now flow: require an account first, then open the registration wizard
-  const openRegisterFlow = useCallback(() => {
-    if (user) {
-      setIsAddModalOpen(true);
-    } else {
-      setPendingRegister(true);
-      setIsAuthOpen(true);
-    }
-  }, [user]);
+  // Enterprise Authentication State (null by default for guest, or restored from localStorage)
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aquaswap_user');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return null;
+  });
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState('signin');
 
-  // Pull this account's saved factories from SQLite and merge them into the live clusters
+  // Load live clusters & facilities from SQLite backend upon startup
   useEffect(() => {
-    if (!authReady || !user) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const { facilities } = await apiFetch('/facilities');
-        if (cancelled || !facilities?.length) return;
-        setClusters((prevClusters) => {
-          let next = prevClusters;
-          for (const f of facilities) {
-            const fid = f.data?.id;
-            const cid = f.data?.clusterId;
-            if (!fid || !cid) continue;
-            next = next.map((c) => {
-              if (c.id !== cid) return c;
-              const listKey = f.type === 'supplier' ? 'suppliers' : 'buyers';
-              if (c[listKey]?.some((x) => x.id === fid)) return c;
-              return { ...c, [listKey]: [...(c[listKey] || []), f.data] };
-            });
-          }
-          setSelectedCluster((prevSel) => {
-            const updated = next.find((c) => c.id === prevSel.id);
-            return updated || prevSel;
+    clustersAPI
+      .getAll()
+      .then((data) => {
+        if (data?.clusters?.length) {
+          setClusters(data.clusters);
+          setSelectedCluster((prev) => {
+            const found = data.clusters.find((c) => c.id === prev.id);
+            return found || data.clusters[0];
           });
-          return next;
+        }
+      })
+      .catch((err) => {
+        console.warn('Backend clusters API unavailable, using in-memory baseline:', err.message);
+      });
+  }, []);
+
+  const handleOpenSignIn = (mode = 'signin') => {
+    setAuthModalMode(typeof mode === 'string' ? mode : 'signin');
+    setIsAuthModalOpen(true);
+  };
+
+  const handleOpenSignUp = () => {
+    setAuthModalMode('signup');
+    setIsAuthModalOpen(true);
+  };
+
+  const handleOpenMockAccounts = () => {
+    setAuthModalMode('demo');
+    setIsAuthModalOpen(true);
+  };
+
+  // Handler for adding a new facility dynamically and saving to database
+  const handleAddFacility = useCallback(
+    (type, facility) => {
+      // 1. Update React State immediately for responsive UI
+      setClusters((prevClusters) => {
+        return prevClusters.map((c) => {
+          if (c.id === selectedCluster.id) {
+            const updated = { ...c };
+            if (type === 'supplier') {
+              updated.suppliers = [...updated.suppliers, facility];
+            } else {
+              updated.buyers = [...updated.buyers, facility];
+            }
+            setSelectedCluster(updated);
+            return updated;
+          }
+          return c;
         });
-      } catch (err) {
-        console.warn('Could not load saved facilities:', err.message);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [authReady, user]);
+      });
+
+      // 2. Persist to SQLite Backend
+      facilitiesAPI
+        .create({
+          name: facility.name,
+          type: type,
+          clusterId: selectedCluster.id,
+          sector: facility.sector,
+          category: facility.category,
+          capacityW: facility.capacityW,
+          demandD: facility.demandD,
+          effluent: facility.effluent,
+          tolerance: facility.toleranceM || facility.tolerance,
+          description: facility.description
+        })
+        .catch((err) => {
+          console.warn('Failed to persist facility to SQLite backend:', err.message);
+        });
+    },
+    [selectedCluster.id]
+  );
+
+  const handleLoginSuccess = (user, isNewRegistration = false) => {
+    setCurrentUser(user);
+    try {
+      localStorage.setItem('aquaswap_user', JSON.stringify(user));
+    } catch (e) {}
+
+    // Refresh clusters from SQLite backend so newly registered facility appears
+    clustersAPI
+      .getAll()
+      .then((data) => {
+        if (data?.clusters?.length) {
+          setClusters(data.clusters);
+          setSelectedCluster((prev) => {
+            const found = data.clusters.find((c) => c.id === (user.clusterId || prev.id));
+            return found || data.clusters[0];
+          });
+        }
+      })
+      .catch(() => {});
+  };
+
+  const handleLogout = () => {
+    authAPI.logout();
+    setCurrentUser(null);
+  };
+
+  const handleOpenAddModal = (role = 'supplier') => {
+    setAddFacilityInitialType(role);
+    setIsAddModalOpen(true);
+  };
 
   // Climate Season State ('monsoon', 'dry', 'drought')
   const [climateSeason, setClimateSeason] = useState('monsoon');
@@ -132,39 +203,6 @@ function AppShell() {
     return solveWaterNetworkOptimization(activeCluster, solverOptions);
   }, [activeCluster, solverOptions]);
 
-  // Handler for adding a new facility dynamically — updates live state AND persists to the account database
-  const handleAddFacility = useCallback(
-    (type, facility) => {
-      setClusters((prevClusters) => {
-        return prevClusters.map((c) => {
-          if (c.id === selectedCluster.id) {
-            const updated = { ...c };
-            if (type === 'supplier') {
-              updated.suppliers = [...updated.suppliers, facility];
-            } else {
-              updated.buyers = [...updated.buyers, facility];
-            }
-            setSelectedCluster(updated);
-            return updated;
-          }
-          return c;
-        });
-      });
-
-      if (user) {
-        apiFetch('/facilities', {
-          method: 'POST',
-          body: {
-            type,
-            name: facility.name,
-            sector: facility.sector,
-            data: { ...facility, clusterId: selectedCluster.id }
-          }
-        }).catch((err) => console.warn('Facility save failed (kept in live session):', err.message));
-      }
-    },
-    [selectedCluster.id, user]
-  );
 
   const handleRunOptimization = () => {
     setSolverOptions((prev) => ({ ...prev }));
@@ -176,13 +214,13 @@ function AppShell() {
       <Header
         clusters={clusters}
         selectedCluster={selectedCluster}
-        setSelectedCluster={setSelectedCluster}
-        user={user}
-        onOpenAddModal={openRegisterFlow}
-        onOpenAuth={() => setIsAuthOpen(true)}
-        onLogout={logout}
+        setSelectedCluster={handleSelectCluster}
+        currentUser={currentUser}
+        onOpenSignIn={handleOpenSignIn}
+        onOpenSignUp={handleOpenSignUp}
+        onOpenMockAccounts={handleOpenMockAccounts}
+        onLogout={handleLogout}
         onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
-        onOpenSavingsCalculator={() => setIsSavingsCalculatorOpen(true)}
         onOpenESGCertificate={() => setIsESGCertificateOpen(true)}
       />
 
@@ -194,12 +232,10 @@ function AppShell() {
             path="/"
             element={
               <HomePage
-                cluster={activeCluster}
                 metrics={optimizationResults.metrics}
-                onOpenSavingsCalculator={() => setIsSavingsCalculatorOpen(true)}
-                onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
-                onOpenAddModal={openRegisterFlow}
-                onOpenAuth={() => setIsAuthOpen(true)}
+                cluster={activeCluster}
+                onOpenMockAccounts={handleOpenMockAccounts}
+                onOpenSignIn={handleOpenSignIn}
               />
             }
           />
@@ -215,7 +251,6 @@ function AppShell() {
                 optimizationResults={optimizationResults}
                 onRunOptimization={handleRunOptimization}
                 onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
-                onOpenSavingsCalculator={() => setIsSavingsCalculatorOpen(true)}
                 onOpenESGCertificate={() => setIsESGCertificateOpen(true)}
                 climateSeason={climateSeason}
                 setClimateSeason={setClimateSeason}
@@ -229,16 +264,13 @@ function AppShell() {
             element={
               <BlenderPage
                 cluster={activeCluster}
-                focusFacilityId={blenderFocusId}
-                focusBuyerId={blenderFocusBuyerId}
-                buyerAllocations={optimizationResults.buyerAllocations}
-                onOpenExchange={() => navigate('/optimizer')}
+                optimizationResults={optimizationResults}
                 onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
               />
             }
           />
 
-          {/* Live Tanker Fleet, GIS Map & Partner Matchmaker Page */}
+          {/* Live Fleet & Partner Matchmaker Unified Page */}
           <Route
             path="/fleet"
             element={
@@ -246,16 +278,24 @@ function AppShell() {
                 cluster={activeCluster}
                 optimizationResults={optimizationResults}
                 onSelectMatchForWPA={setSelectedMatchForWPA}
-                onOpenBlenderForBuyer={(buyerId) => {
-                  setBlenderFocusBuyerId(buyerId);
-                  setBlenderFocusId(null);
-                  navigate('/blender');
-                }}
               />
             }
           />
 
-          {/* Safety, SCADA, Contracts & ESG Audit Page */}
+          {/* Legacy /matchmaker route - smoothly renders the unified page with matchmaker focus */}
+          <Route
+            path="/matchmaker"
+            element={
+              <FleetPage
+                cluster={activeCluster}
+                optimizationResults={optimizationResults}
+                onSelectMatchForWPA={setSelectedMatchForWPA}
+                defaultTab="matchmaker"
+              />
+            }
+          />
+
+          {/* Unified Safety, Contracts & ESG Governance Page */}
           <Route
             path="/compliance"
             element={
@@ -268,6 +308,20 @@ function AppShell() {
             }
           />
 
+          {/* Legacy /esg route - smoothly renders the unified page with ESG focus */}
+          <Route
+            path="/esg"
+            element={
+              <CompliancePage
+                selectedMatch={selectedMatchForWPA}
+                cluster={activeCluster}
+                metrics={optimizationResults.metrics}
+                onOpenESGCertificate={() => setIsESGCertificateOpen(true)}
+                defaultTab="esg"
+              />
+            }
+          />
+
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -275,51 +329,24 @@ function AppShell() {
 
       {/* 3. Global Multi-Page Footer */}
       <Footer
-        onOpenSavingsCalculator={() => setIsSavingsCalculatorOpen(true)}
         onOpenESGCertificate={() => setIsESGCertificateOpen(true)}
         onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
+        onOpenSignIn={handleOpenSignIn}
+        onOpenSignUp={handleOpenSignUp}
       />
 
       {/* Modals Accessible Across Any Page */}
-      <AuthModal
-        isOpen={isAuthOpen}
-        onClose={() => setIsAuthOpen(false)}
-        onSuccess={() => {
-          if (pendingRegister) {
-            setPendingRegister(false);
-            setIsAddModalOpen(true);
-          }
-        }}
-      />
-
       <FacilityManagerModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAddFacility={handleAddFacility}
-        onOpenBlender={(facilityId) => {
-          setBlenderFocusId(facilityId);
-          setBlenderFocusBuyerId(null);
-          setIsAddModalOpen(false);
-          navigate('/blender');
-        }}
-        onOpenNetwork={(facilityId) => {
-          setBlenderFocusId(facilityId);
-          setBlenderFocusBuyerId(null);
-          setIsAddModalOpen(false);
-          navigate('/optimizer');
-        }}
+        initialType={addFacilityInitialType}
       />
 
       <HowItWorksModal
         isOpen={isHowItWorksOpen}
         onClose={() => setIsHowItWorksOpen(false)}
-      />
-
-      <SavingsCalculatorModal
-        isOpen={isSavingsCalculatorOpen}
-        onClose={() => setIsSavingsCalculatorOpen(false)}
-        cluster={activeCluster}
-        onOpenAddFacility={openRegisterFlow}
+        onOpenAddModal={handleOpenAddModal}
       />
 
       <ESGCertificateModal
@@ -327,6 +354,15 @@ function AppShell() {
         onClose={() => setIsESGCertificateOpen(false)}
         cluster={activeCluster}
         metrics={optimizationResults.metrics}
+      />
+
+      {/* Enterprise Authentication Sign In / Sign Up Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        initialMode={authModalMode}
+        onLoginSuccess={handleLoginSuccess}
+        clusters={clusters}
       />
     </div>
   );

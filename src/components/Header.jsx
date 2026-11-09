@@ -1,45 +1,60 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import {
   Droplets,
-  PlusCircle,
   Building2,
-  Calculator,
-  Award,
-  Sparkles,
   LogIn,
-  LogOut
+  UserPlus,
+  LogOut,
+  Sparkles,
+  ChevronDown,
+  User
 } from 'lucide-react';
 
 export default function Header({
   clusters,
   selectedCluster,
   setSelectedCluster,
-  user,
-  onOpenAddModal,
-  onOpenAuth,
-  onLogout,
-  onOpenHowItWorks,
-  onOpenSavingsCalculator,
-  onOpenESGCertificate
+  currentUser,
+  onOpenSignIn,
+  onOpenSignUp,
+  onOpenMockAccounts,
+  onLogout
 }) {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
+
   return (
     <header
       style={{
         borderBottom: '1px solid var(--border-light)',
-        background: 'rgba(7, 10, 18, 0.94)',
-        backdropFilter: 'blur(20px)',
+        background: '#ffffff',
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        transition: 'all 0.2s ease'
+        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03)'
       }}
     >
       <div
         style={{
           maxWidth: '1360px',
           margin: '0 auto',
-          padding: '12px 24px',
+          padding: '10px 24px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -53,34 +68,27 @@ export default function Header({
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
+            gap: '8px',
             textDecoration: 'none'
           }}
         >
           <div
             style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '11px',
-              background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+              width: '32px',
+              height: '32px',
+              borderRadius: '7px',
+              background: '#f0f9ff',
+              border: '1px solid #bae6fd',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 14px rgba(14, 165, 233, 0.35)'
+              justifyContent: 'center'
             }}
           >
-            <Droplets size={22} color="#fff" />
+            <Droplets size={18} color="#0284c7" />
           </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.025em', color: '#fff' }}>
-                AquaSwap
-              </span>
-            </div>
-            <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              Circular Industrial Water Grid
-            </p>
-          </div>
+          <span style={{ fontSize: '1.15rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#0f172a' }}>
+            AquaSwap
+          </span>
         </Link>
 
         {/* Multi-Page Navigation Bar */}
@@ -118,37 +126,23 @@ export default function Header({
             to="/fleet"
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
           >
-            Fleet &amp; Matchmaker
+            Fleet & Matchmaker
           </NavLink>
 
           <NavLink
             to="/compliance"
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
           >
-            Safety &amp; ESG
+            Safety & ESG
           </NavLink>
         </nav>
 
-        {/* Right Action Bar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          {/* Quick Calculator */}
-          <button
-            onClick={onOpenSavingsCalculator}
-            className="btn btn-secondary btn-sm"
-            style={{
-              background: 'rgba(16, 185, 129, 0.08)',
-              borderColor: 'rgba(16, 185, 129, 0.3)',
-              color: '#34d399'
-            }}
-            title="Calculate potential factory savings"
-          >
-            <Calculator size={14} />
-            <span>ROI Calculator</span>
-          </button>
-
+        {/* Right Section: Cluster Selector + Account/Switch Dropdown */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          
           {/* Cluster Switcher */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <Building2 size={14} color="var(--text-muted)" />
+            <Building2 size={13} color="#64748b" />
             <select
               value={selectedCluster.id}
               onChange={(e) => {
@@ -157,11 +151,14 @@ export default function Header({
               }}
               style={{
                 width: 'auto',
-                minWidth: '150px',
-                padding: '6px 8px',
+                minWidth: '135px',
+                padding: '5px 8px',
                 fontSize: '0.76rem',
-                borderRadius: 'var(--radius-sm)',
-                background: 'rgba(255,255,255,0.04)'
+                borderRadius: '6px',
+                background: '#ffffff',
+                border: '1px solid var(--border-light)',
+                color: '#0f172a',
+                cursor: 'pointer'
               }}
             >
               {clusters.map((c) => (
@@ -172,44 +169,262 @@ export default function Header({
             </select>
           </div>
 
-          {/* Auth State */}
-          {user ? (
-            <div
+          <div style={{ width: '1px', height: '20px', background: 'var(--border-light)' }} />
+
+          {/* Unified Login & Switch Dropdown */}
+          <div ref={dropdownRef} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
-                padding: '5px 10px',
-                background: 'rgba(16, 185, 129, 0.08)',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
-                borderRadius: 'var(--radius-sm)'
+                gap: '7px',
+                padding: '5px 11px',
+                borderRadius: '6px',
+                border: currentUser ? '1px solid var(--border-light)' : '1px solid #bae6fd',
+                background: currentUser ? '#ffffff' : '#f0f9ff',
+                color: currentUser ? 'var(--text-main)' : '#0284c7',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
               }}
-              title={user.email}
+              title={currentUser ? `Logged in as ${currentUser.name}` : 'Login & Switch Plant'}
             >
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#34d399' }} />
-              <span style={{ fontSize: '0.76rem', color: '#cbd5e1', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {user.company || user.email}
-              </span>
-              <button
-                onClick={onLogout}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: '2px', color: '#94a3b8' }}
-                title="Log out"
-              >
-                <LogOut size={14} />
-              </button>
-            </div>
-          ) : (
-            <button onClick={onOpenAuth} className="btn btn-secondary btn-sm">
-              <LogIn size={14} />
-              <span>Sign In</span>
+              {currentUser ? (
+                <>
+                  <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981', flexShrink: 0 }} />
+                  <span style={{ maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {currentUser.name}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <User size={13} color="#0284c7" />
+                  <span>Account</span>
+                </>
+              )}
+              <ChevronDown
+                size={13}
+                color={currentUser ? '#64748b' : '#0284c7'}
+                style={{
+                  transform: isDropdownOpen ? 'rotate(180deg)' : 'none',
+                  transition: 'transform 0.15s ease'
+                }}
+              />
             </button>
-          )}
 
-          {/* Onboard Facility Primary CTA */}
-          <button className="btn btn-primary btn-sm" onClick={onOpenAddModal}>
-            <PlusCircle size={14} />
-            <span>Onboard Plant</span>
-          </button>
+            {/* Dropdown Menu */}
+            {isDropdownOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: 'calc(100% + 6px)',
+                  width: '230px',
+                  background: '#ffffff',
+                  border: '1px solid var(--border-light)',
+                  borderRadius: 'var(--radius-md)',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
+                  padding: '6px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px',
+                  zIndex: 1000
+                }}
+              >
+                {currentUser ? (
+                  <>
+                    {/* Active Plant Info Banner */}
+                    <div style={{ padding: '8px 10px', background: '#f8fafc', borderRadius: '6px', marginBottom: '4px' }}>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {currentUser.name}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
+                        <span className={`status-pill ${currentUser.role === 'supplier' ? 'status-cyan' : 'status-emerald'}`} style={{ fontSize: '0.66rem', padding: '1px 6px' }}>
+                          {currentUser.role === 'supplier' ? 'Supplier' : 'Buyer'}
+                        </span>
+                        <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                          {currentUser.sector?.split(' ')[0] || 'Factory'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        if (onOpenMockAccounts) onOpenMockAccounts();
+                        else onOpenSignIn('demo');
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        width: '100%',
+                        padding: '8px 10px',
+                        background: 'none',
+                        border: 'none',
+                        borderRadius: '5px',
+                        fontSize: '0.78rem',
+                        color: 'var(--text-main)',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontWeight: 500
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                    >
+                      <Sparkles size={14} color="#0284c7" />
+                      <span>Switch Plant (16 Mock)</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        onOpenSignIn('signin');
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        width: '100%',
+                        padding: '8px 10px',
+                        background: 'none',
+                        border: 'none',
+                        borderRadius: '5px',
+                        fontSize: '0.78rem',
+                        color: 'var(--text-main)',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontWeight: 500
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                    >
+                      <LogIn size={14} color="#64748b" />
+                      <span>Sign In as Another Plant</span>
+                    </button>
+
+                    <div style={{ height: '1px', background: 'var(--border-light)', margin: '4px 0' }} />
+
+                    <button
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        onLogout();
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        width: '100%',
+                        padding: '8px 10px',
+                        background: 'none',
+                        border: 'none',
+                        borderRadius: '5px',
+                        fontSize: '0.78rem',
+                        color: '#dc2626',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontWeight: 600
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#fef2f2')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                    >
+                      <LogOut size={14} color="#dc2626" />
+                      <span>Log Out</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        onOpenSignIn('signin');
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        width: '100%',
+                        padding: '8px 10px',
+                        background: 'none',
+                        border: 'none',
+                        borderRadius: '5px',
+                        fontSize: '0.78rem',
+                        color: 'var(--text-main)',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontWeight: 600
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                    >
+                      <LogIn size={14} color="#0284c7" />
+                      <span>Sign In</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        if (onOpenMockAccounts) onOpenMockAccounts();
+                        else onOpenSignIn('demo');
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        width: '100%',
+                        padding: '8px 10px',
+                        background: 'none',
+                        border: 'none',
+                        borderRadius: '5px',
+                        fontSize: '0.78rem',
+                        color: '#0284c7',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontWeight: 600
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f0f9ff')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                    >
+                      <Sparkles size={14} color="#0284c7" />
+                      <span>Switch / Mock Accounts</span>
+                    </button>
+
+                    <div style={{ height: '1px', background: 'var(--border-light)', margin: '4px 0' }} />
+
+                    <button
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        onOpenSignUp();
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        width: '100%',
+                        padding: '8px 10px',
+                        background: 'none',
+                        border: 'none',
+                        borderRadius: '5px',
+                        fontSize: '0.78rem',
+                        color: '#16a34a',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontWeight: 500
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f0fdf4')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                    >
+                      <UserPlus size={14} color="#16a34a" />
+                      <span>Register Plant</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>

@@ -1,27 +1,22 @@
 import React, { useState } from 'react';
-import { PlusCircle, X, FlaskConical, ArrowRight, CheckCircle2 } from 'lucide-react';
-
-const BASE_FIELDS = [
-  { key: 'tds', label: 'Total Dissolved Solids', unit: 'mg/L' },
-  { key: 'cod', label: 'Chemical Oxygen Demand', unit: 'mg/L' },
-  { key: 'bod', label: 'Biochemical Oxygen Demand', unit: 'mg/L' },
-  { key: 'chlorides', label: 'Chlorides', unit: 'mg/L' },
-  { key: 'sulfates', label: 'Sulfates', unit: 'mg/L' },
-  { key: 'ph', label: 'pH', unit: '' }
-];
-
-const EXTENDED_FIELDS = [
-  { key: 'hardness', label: 'Hardness (CaCO₃)', unit: 'mg/L' },
-  { key: 'silica', label: 'Silica', unit: 'mg/L' },
-  { key: 'iron', label: 'Iron & Mn', unit: 'mg/L' },
-  { key: 'color', label: 'Color / Dye', unit: 'Pt-Co' },
-  { key: 'oil', label: 'Oil & Grease', unit: 'mg/L' }
-];
+import { useNavigate } from 'react-router-dom';
+import {
+  PlusCircle,
+  Building2,
+  Droplets,
+  X,
+  Sparkles,
+  CheckCircle2,
+  FlaskConical,
+  Compass,
+  ArrowRight,
+  ShieldCheck,
+  Truck
+} from 'lucide-react';
 
 const PRESET_TEMPLATES = {
   textile: {
     sector: 'Textile Dyeing & Finishing',
-    emoji: '👕 Textile Dyeing',
     volume: 600,
     tds: 2200,
     cod: 480,
@@ -29,16 +24,10 @@ const PRESET_TEMPLATES = {
     chlorides: 450,
     sulfates: 320,
     ph: 7.8,
-    hardness: 380,
-    silica: 40,
-    iron: 1.2,
-    color: 450,
-    oil: 6,
     desc: 'Washing and rinse effluent with low salt and moderate organic dyes.'
   },
   beverage: {
     sector: 'Food & Beverage Processing',
-    emoji: '🥤 Food & Beverage',
     volume: 350,
     tds: 650,
     cod: 380,
@@ -46,16 +35,10 @@ const PRESET_TEMPLATES = {
     chlorides: 90,
     sulfates: 60,
     ph: 6.8,
-    hardness: 260,
-    silica: 18,
-    iron: 0.3,
-    color: 40,
-    oil: 4,
     desc: 'Clean bottle wash and packaging process water.'
   },
   concrete: {
     sector: 'Concrete & Masonry Batching',
-    emoji: '🧱 Concrete Plant',
     volume: 400,
     tds: 35000,
     cod: 500,
@@ -63,16 +46,10 @@ const PRESET_TEMPLATES = {
     chlorides: 1000,
     sulfates: 3000,
     ph: 8.5,
-    hardness: 1800,
-    silica: 120,
-    iron: 1.8,
-    color: 60,
-    oil: 12,
     desc: 'High tolerance for batch mixing and dust suppression.'
   },
   cooling: {
     sector: 'Industrial Cooling Towers',
-    emoji: '❄️ Cooling Towers',
     volume: 500,
     tds: 2500,
     cod: 80,
@@ -80,44 +57,38 @@ const PRESET_TEMPLATES = {
     chlorides: 400,
     sulfates: 350,
     ph: 7.5,
-    hardness: 700,
-    silica: 90,
-    iron: 0.6,
-    color: 25,
-    oil: 2,
     desc: 'Cooling tower makeup water with low organic content.'
   }
 };
 
-export default function FacilityManagerModal({
-  isOpen,
-  onClose,
-  onAddFacility,
-  onOpenBlender,
-  onOpenNetwork
-}) {
-  if (!isOpen) return null;
+export default function FacilityManagerModal({ isOpen, onClose, onAddFacility, initialType = 'supplier' }) {
+  const navigate = useNavigate();
 
-  const [type, setType] = useState('supplier'); // 'supplier' or 'buyer'
+  const [type, setType] = useState(initialType);
   const [name, setName] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('textile');
   const [sector, setSector] = useState(PRESET_TEMPLATES.textile.sector);
   const [volume, setVolume] = useState(PRESET_TEMPLATES.textile.volume);
-  const [chem, setChem] = useState({
-    tds: PRESET_TEMPLATES.textile.tds,
-    cod: PRESET_TEMPLATES.textile.cod,
-    bod: PRESET_TEMPLATES.textile.bod,
-    chlorides: PRESET_TEMPLATES.textile.chlorides,
-    sulfates: PRESET_TEMPLATES.textile.sulfates,
-    ph: PRESET_TEMPLATES.textile.ph,
-    hardness: PRESET_TEMPLATES.textile.hardness,
-    silica: PRESET_TEMPLATES.textile.silica,
-    iron: PRESET_TEMPLATES.textile.iron,
-    color: PRESET_TEMPLATES.textile.color,
-    oil: PRESET_TEMPLATES.textile.oil
-  });
-  const [showChem, setShowChem] = useState(false);
-  const [registered, setRegistered] = useState(null); // { id, name, role, type }
+  const [tds, setTds] = useState(PRESET_TEMPLATES.textile.tds);
+  const [chlorides, setChlorides] = useState(PRESET_TEMPLATES.textile.chlorides);
+  const [cod, setCod] = useState(PRESET_TEMPLATES.textile.cod);
+  const [sulfates, setSulfates] = useState(PRESET_TEMPLATES.textile.sulfates);
+  const [bod, setBod] = useState(PRESET_TEMPLATES.textile.bod);
+  const [ph, setPh] = useState(PRESET_TEMPLATES.textile.ph);
+
+  // Success state after registration
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [registeredData, setRegisteredData] = useState(null);
+
+  React.useEffect(() => {
+    if (initialType) setType(initialType);
+  }, [initialType, isOpen]);
+
+  const handleClose = () => {
+    setIsSuccess(false);
+    setRegisteredData(null);
+    onClose();
+  };
 
   const applyTemplate = (key) => {
     setSelectedTemplate(key);
@@ -125,39 +96,14 @@ export default function FacilityManagerModal({
     if (tmpl) {
       setSector(tmpl.sector);
       setVolume(tmpl.volume);
-      setChem({
-        tds: tmpl.tds,
-        cod: tmpl.cod,
-        bod: tmpl.bod,
-        chlorides: tmpl.chlorides,
-        sulfates: tmpl.sulfates,
-        ph: tmpl.ph,
-        hardness: tmpl.hardness,
-        silica: tmpl.silica,
-        iron: tmpl.iron,
-        color: tmpl.color,
-        oil: tmpl.oil
-      });
+      setTds(tmpl.tds);
+      setChlorides(tmpl.chlorides);
+      setCod(tmpl.cod);
+      setSulfates(tmpl.sulfates);
+      setBod(tmpl.bod);
+      setPh(tmpl.ph);
     }
   };
-
-  const parsedChem = {
-    TDS: parseInt(chem.tds, 10) || 0,
-    COD: parseInt(chem.cod, 10) || 0,
-    BOD: parseInt(chem.bod, 10) || 0,
-    CHLORIDES: parseInt(chem.chlorides, 10) || 0,
-    SULFATES: parseInt(chem.sulfates, 10) || 0,
-    HARDNESS: parseFloat(chem.hardness) || 0,
-    SILICA: parseFloat(chem.silica) || 0,
-    IRON: parseFloat(chem.iron) || 0,
-    COLOR: parseFloat(chem.color) || 0,
-    OIL: parseFloat(chem.oil) || 0,
-    pH: parseFloat(chem.ph) || 7.0
-  };
-
-  // Does this factory's water profile fit the blending analysis?
-  // (needs a plausible numeric chemistry: some solids, a valid pH)
-  const fitsBlender = parsedChem.TDS > 0 && parsedChem.pH >= 4 && parsedChem.pH <= 11;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -167,193 +113,75 @@ export default function FacilityManagerModal({
     const rx = 180 + Math.floor(Math.random() * 550);
     const ry = 120 + Math.floor(Math.random() * 320);
 
-    const coords = { x: rx, y: ry, lat: 24.01 + (ry - 250) * 0.0005, lng: 90.39 + (rx - 400) * 0.0005 };
+    let createdFacility;
 
     if (type === 'supplier') {
-      const newSup = {
+      createdFacility = {
         id: `sup-${Date.now()}`,
         name: facilityName,
         sector,
         category: 'Orange',
         capacityW: parseInt(volume, 10),
-        effluent: { ...parsedChem },
-        coords,
+        effluent: {
+          TDS: parseInt(tds, 10),
+          COD: parseInt(cod, 10),
+          BOD: parseInt(bod, 10),
+          CHLORIDES: parseInt(chlorides, 10),
+          SULFATES: parseInt(sulfates, 10),
+          pH: parseFloat(ph)
+        },
+        coords: { x: rx, y: ry, lat: 24.01 + (ry - 250) * 0.0005, lng: 90.39 + (rx - 400) * 0.0005 },
         description: `Registered ${sector} generating ${volume} m³/day of reusable water.`
       };
-      onAddFacility('supplier', newSup);
-      setRegistered({ id: newSup.id, name: facilityName, role: 'supplier' });
+      onAddFacility('supplier', createdFacility);
     } else {
-      const newBuy = {
+      createdFacility = {
         id: `buy-${Date.now()}`,
         name: facilityName,
         sector,
         demandD: parseInt(volume, 10),
         scarcityFactorS: 0.85,
         toleranceM: {
-          ...parsedChem,
-          TDS: parsedChem.TDS,
-          pH_min: Math.max(4, Math.round((parsedChem.pH - 1) * 10) / 10),
-          pH_max: Math.min(11, Math.round((parsedChem.pH + 1) * 10) / 10)
+          TDS: parseInt(tds, 10),
+          COD: parseInt(cod, 10),
+          BOD: parseInt(bod, 10),
+          CHLORIDES: parseInt(chlorides, 10),
+          SULFATES: parseInt(sulfates, 10),
+          pH_min: 6.0,
+          pH_max: 9.0
         },
-        coords,
+        coords: { x: rx, y: ry, lat: 24.01 + (ry - 250) * 0.0005, lng: 90.39 + (rx - 400) * 0.0005 },
         description: `Registered ${sector} with demand of ${volume} m³/day for industrial process water.`
       };
-      onAddFacility('buyer', newBuy);
-      setRegistered({ id: newBuy.id, name: facilityName, role: 'buyer' });
+      onAddFacility('buyer', createdFacility);
     }
+
+    // Persist to localStorage so the Blender Lab knows about this newly registered factory stream
+    try {
+      localStorage.setItem('aquaswap_latest_facility', JSON.stringify({
+        type,
+        facility: createdFacility
+      }));
+    } catch {
+      // ignore
+    }
+
+    setRegisteredData({ type, facility: createdFacility });
+    setIsSuccess(true);
   };
 
-  const restartForm = () => {
-    setRegistered(null);
-    setName('');
+  const handleGoToBlender = () => {
+    handleClose();
+    navigate('/blender');
   };
 
-  /* ------------ SUCCESS STEP: shown right after registration ------------ */
-  if (registered) {
-    return (
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(5, 8, 15, 0.85)',
-          backdropFilter: 'blur(10px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '20px'
-        }}
-        onClick={onClose}
-      >
-        <div
-          className="ui-card"
-          style={{
-            width: '100%',
-            maxWidth: '480px',
-            background: '#0d1322',
-            border: '1px solid rgba(16, 185, 129, 0.4)',
-            padding: '28px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '18px'
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div
-              style={{
-                width: '44px',
-                height: '44px',
-                borderRadius: '50%',
-                background: 'rgba(16, 185, 129, 0.15)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <CheckCircle2 size={26} color="#34d399" />
-            </div>
-            <div>
-              <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff' }}>
-                {registered.name} is live!
-              </h2>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                {registered.role === 'supplier'
-                  ? 'Its leftover water quality is already being scanned for profitable matches.'
-                  : 'Its quality tolerances are already being matched against supplier streams.'}
-              </p>
-            </div>
-          </div>
+  const handleGoToOptimizer = () => {
+    handleClose();
+    navigate('/optimizer');
+  };
 
-          {fitsBlender ? (
-            <div
-              style={{
-                padding: '14px',
-                background: 'rgba(14, 165, 233, 0.06)',
-                border: '1px solid rgba(14, 165, 233, 0.3)',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.83rem',
-                color: '#cbd5e1',
-                lineHeight: 1.5
-              }}
-            >
-              🧪 <strong style={{ color: '#38bdf8' }}>Water chemistry captured.</strong> This factory's parameters fit our
-              blending analysis — you can stress-test its water recipe before it trades.
-            </div>
-          ) : (
-            <div
-              style={{
-                padding: '14px',
-                background: 'rgba(245, 158, 11, 0.08)',
-                border: '1px solid rgba(245, 158, 11, 0.3)',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.83rem',
-                color: '#cbd5e1',
-                lineHeight: 1.5
-              }}
-            >
-              ⚠️ Water chemistry looks incomplete — the Blender Lab needs a valid solids & pH reading. It still trades on
-              the Exchange Network with the values on file.
-            </div>
-          )}
+  if (!isOpen) return null;
 
-          {fitsBlender ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <button
-                className="btn btn-primary"
-                onClick={() => onOpenBlender(registered.id)}
-                style={{ justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '8px' }}
-              >
-                <FlaskConical size={16} />
-                <span>
-                  {registered.role === 'supplier'
-                    ? 'Test its Water in the Blender Lab'
-                    : 'Review its Quality Targets in the Blender'}
-                </span>
-                <ArrowRight size={15} />
-              </button>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => onOpenNetwork(registered.id)}
-                style={{ justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '8px' }}
-              >
-                <span>
-                  {registered.role === 'supplier'
-                    ? 'Or see its trade routes in the Exchange Network'
-                    : 'Or match suppliers in the Exchange Network'}
-                </span>
-                <ArrowRight size={13} />
-              </button>
-            </div>
-          ) : (
-            <button
-              className="btn btn-primary"
-              onClick={() => onOpenNetwork(registered.id)}
-              style={{ justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '8px' }}
-            >
-              <span>See its trade routes in the Exchange Network</span>
-              <ArrowRight size={15} />
-            </button>
-          )}
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '4px' }}>
-            <button className="btn btn-secondary btn-sm" onClick={restartForm}>
-              <PlusCircle size={14} />
-              <span>Register another factory</span>
-            </button>
-            <button className="btn btn-secondary btn-sm" onClick={onClose}>
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* ------------ REGISTRATION FORM ------------ */
   return (
     <div
       style={{
@@ -362,223 +190,439 @@ export default function FacilityManagerModal({
         left: 0,
         right: 0,
         bottom: 0,
-        background: 'rgba(5, 8, 15, 0.85)',
-        backdropFilter: 'blur(10px)',
+        background: 'rgba(15, 23, 42, 0.65)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 1000,
         padding: '20px'
       }}
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         className="ui-card"
         style={{
           width: '100%',
-          maxWidth: '580px',
+          maxWidth: isSuccess ? '640px' : '580px',
           maxHeight: '90vh',
           overflowY: 'auto',
-          background: '#0d1322',
-          border: '1px solid rgba(14, 165, 233, 0.35)',
+          background: '#ffffff',
+          border: '1px solid var(--border-light)',
           padding: '26px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '20px'
+          gap: '20px',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Top Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div
               style={{
                 width: '36px',
                 height: '36px',
-                borderRadius: '10px',
-                background: 'rgba(14, 165, 233, 0.15)',
+                borderRadius: '8px',
+                background: isSuccess ? '#dcfce7' : '#f0f9ff',
+                border: isSuccess ? '1px solid #bbf7d0' : '1px solid #bae6fd',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'
               }}
             >
-              <PlusCircle size={20} color="#38bdf8" />
+              {isSuccess ? (
+                <CheckCircle2 size={20} color="#16a34a" />
+              ) : (
+                <PlusCircle size={20} color="#0284c7" />
+              )}
             </div>
             <div>
-              <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#fff' }}>
-                Register a Factory
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-heading)' }}>
+                {isSuccess ? 'Facility Registered Successfully' : 'Register Industrial Facility'}
               </h2>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                Add a new water supplier or buyer to the network
+                {isSuccess
+                  ? 'Your facility profile is now indexed in the AquaSwap network'
+                  : 'Add an industrial water supplier or buyer to the regional network'}
               </p>
             </div>
           </div>
 
-          <button onClick={onClose} className="btn btn-secondary btn-sm" style={{ padding: '4px', borderRadius: '50%' }}>
+          <button onClick={handleClose} className="btn btn-secondary btn-sm" style={{ padding: '6px', borderRadius: '6px' }}>
             <X size={16} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* VIEW 1: REGISTRATION SUCCESS & NEXT-STEP SCREEN */}
+        {isSuccess && registeredData ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Registration Summary Card */}
+            <div
+              style={{
+                padding: '16px 18px',
+                background: '#f8fafc',
+                borderRadius: '8px',
+                border: '1px solid var(--border-light)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                <div>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-heading)' }}>
+                    {registeredData.facility.name}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    {registeredData.facility.sector}
+                  </div>
+                </div>
 
-          {/* Role Choice */}
-          <div>
-            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
-              Factory Role in AquaSwap:
-            </label>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                type="button"
-                className={`tab-pill ${type === 'supplier' ? 'active' : ''}`}
-                onClick={() => setType('supplier')}
-                style={{ flex: 1, justifyContent: 'center' }}
-              >
-                💧 Water Giver (Has Leftover Water)
-              </button>
-              <button
-                type="button"
-                className={`tab-pill ${type === 'buyer' ? 'active' : ''}`}
-                onClick={() => setType('buyer')}
-                style={{ flex: 1, justifyContent: 'center' }}
-              >
-                🏭 Water User (Needs Cheap Water)
-              </button>
-            </div>
-          </div>
-
-          {/* 1-Click Industry Templates */}
-          <div>
-            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
-              ⚡ 1-Click Quick Template (Fills typical water chemistry):
-            </label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-              {Object.entries(PRESET_TEMPLATES).map(([key, tmpl]) => (
-                <button
-                  key={key}
-                  type="button"
-                  className={`tab-pill ${selectedTemplate === key ? 'active' : ''}`}
-                  onClick={() => applyTemplate(key)}
-                  style={{ fontSize: '0.75rem', justifyContent: 'center' }}
-                >
-                  {tmpl.emoji}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Name & Volume */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div>
-              <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                Factory Name:
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Green Valley Mills"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                {type === 'supplier' ? 'Daily Leftover Water (m³):' : 'Daily Water Needed (m³):'}
-              </label>
-              <input
-                type="number"
-                min="20"
-                max="2000"
-                value={volume}
-                onChange={(e) => setVolume(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Editable Water Chemistry */}
-          <div
-            style={{
-              border: '1px solid var(--border-light)',
-              borderRadius: 'var(--radius-md)',
-              padding: '14px',
-              background: 'rgba(255, 255, 255, 0.02)'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                {type === 'supplier'
-                  ? '💧 Actual effluent chemistry (what the factory sends out):'
-                  : '🧪 Maximum quality tolerances the factory accepts:'}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <span className={`status-pill ${registeredData.type === 'supplier' ? 'status-cyan' : 'status-emerald'}`}>
+                    {registeredData.type === 'supplier' ? 'Water Supplier' : 'Water Buyer'}
+                  </span>
+                  <span className="status-pill status-cyan">
+                    {registeredData.facility.capacityW || registeredData.facility.demandD} m³/day
+                  </span>
+                </div>
               </div>
-              {fitsBlender ? (
-                <span className="status-pill status-emerald" style={{ fontSize: '0.7rem' }}>
-                  Fits Blender analysis ✓
-                </span>
-              ) : (
-                <span className="status-pill status-amber" style={{ fontSize: '0.7rem' }}>
-                  Incomplete ✗
-                </span>
-              )}
+
+              {/* Water chemistry parameters quick grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-light)' }}>
+                {registeredData.facility.effluent ? (
+                  <>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>TDS</div>
+                      <div className="mono" style={{ fontSize: '0.85rem', color: 'var(--text-heading)', fontWeight: 600 }}>{registeredData.facility.effluent.TDS}</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Chlorides</div>
+                      <div className="mono" style={{ fontSize: '0.85rem', color: 'var(--text-heading)', fontWeight: 600 }}>{registeredData.facility.effluent.CHLORIDES}</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Sulfates</div>
+                      <div className="mono" style={{ fontSize: '0.85rem', color: 'var(--text-heading)', fontWeight: 600 }}>{registeredData.facility.effluent.SULFATES}</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>COD</div>
+                      <div className="mono" style={{ fontSize: '0.85rem', color: 'var(--text-heading)', fontWeight: 600 }}>{registeredData.facility.effluent.COD}</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>pH</div>
+                      <div className="mono" style={{ fontSize: '0.85rem', color: 'var(--text-heading)', fontWeight: 600 }}>{registeredData.facility.effluent.pH}</div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Max TDS</div>
+                      <div className="mono" style={{ fontSize: '0.85rem', color: '#16a34a', fontWeight: 600 }}>{registeredData.facility.toleranceM.TDS}</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Max Cl</div>
+                      <div className="mono" style={{ fontSize: '0.85rem', color: '#16a34a', fontWeight: 600 }}>{registeredData.facility.toleranceM.CHLORIDES}</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Max SO4</div>
+                      <div className="mono" style={{ fontSize: '0.85rem', color: '#16a34a', fontWeight: 600 }}>{registeredData.facility.toleranceM.SULFATES}</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Max COD</div>
+                      <div className="mono" style={{ fontSize: '0.85rem', color: '#16a34a', fontWeight: 600 }}>{registeredData.facility.toleranceM.COD}</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>pH Range</div>
+                      <div className="mono" style={{ fontSize: '0.85rem', color: '#16a34a', fontWeight: 600 }}>{registeredData.facility.toleranceM.pH_min}-{registeredData.facility.toleranceM.pH_max}</div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-              {BASE_FIELDS.map((f) => (
-                <div key={f.key}>
-                  <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>
-                    {f.label} {f.unit && <span style={{ opacity: 0.7 }}>({f.unit})</span>}:
+            {/* NEXT STEP SELECTION: HIGHLIGHTING WATER BLENDER LAB FIRST */}
+            <div>
+              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Recommended Actions:
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                
+                {/* 1. PRIMARY OPTION: WATER BLENDER LAB (RECOMMENDED FIRST STEP) */}
+                <div
+                  style={{
+                    padding: '18px',
+                    borderRadius: '8px',
+                    background: '#ffffff',
+                    border: '1.5px solid #0284c7',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                    position: 'relative',
+                    boxShadow: 'var(--shadow-sm)'
+                  }}
+                >
+                  <div style={{ position: 'absolute', top: '-10px', right: '16px' }}>
+                    <span className="status-pill status-cyan" style={{ fontSize: '0.68rem', fontWeight: 700, padding: '2px 8px' }}>
+                      Recommended Next Step
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+                    <div
+                      style={{
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '8px',
+                        background: '#f0f9ff',
+                        border: '1px solid #bae6fd',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}
+                    >
+                      <FlaskConical size={22} color="#0284c7" />
+                    </div>
+
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>Simulate Stream Blending in Water Lab</span>
+                      </div>
+                      <p style={{ fontSize: '0.82rem', color: 'var(--text-body)', marginTop: '4px', lineHeight: 1.5 }}>
+                        Different factories require specific water quality thresholds. Simulate blending this water with local cluster streams to test compatibility against ASTM C1602 or Cooling Tower standards and see how many buyers unlock!
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleGoToBlender}
+                    style={{ width: '100%', justifyContent: 'center', padding: '10px', fontSize: '0.9rem' }}
+                  >
+                    <FlaskConical size={16} />
+                    <span>Launch Water Blender with this Facility</span>
+                    <ArrowRight size={16} />
+                  </button>
+                </div>
+
+                {/* 2. SECONDARY OPTION: WATER EXCHANGE NETWORK & OPTIMIZER */}
+                <div
+                  style={{
+                    padding: '16px',
+                    borderRadius: '8px',
+                    background: '#f8fafc',
+                    border: '1px solid var(--border-light)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+                    <div
+                      style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '8px',
+                        background: '#e0f2fe',
+                        border: '1px solid #bae6fd',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}
+                    >
+                      <Compass size={20} color="#0284c7" />
+                    </div>
+
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-heading)' }}>
+                        View in Exchange Network
+                      </div>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.4 }}>
+                        Explore verified GIS coordinates, vehicle haulage models (Pipeline vs 28m³ Tanker vs 14m³ Bowser), and trading economics.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleGoToOptimizer}
+                    style={{ width: '100%', justifyContent: 'center', padding: '9px', fontSize: '0.85rem' }}
+                  >
+                    <Truck size={15} />
+                    <span>View Network Corridors & Fleet Logistics</span>
+                  </button>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Close Button */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '4px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={handleClose}
+                style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}
+              >
+                Close & Return to Overview
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* VIEW 2: REGISTRATION FORM */
+          <>
+            {/* Onboarding Guidelines Banner */}
+            <div style={{ padding: '12px 14px', background: '#f0f9ff', borderRadius: '8px', border: '1px solid #bae6fd', fontSize: '0.8rem', color: '#0369a1', lineHeight: 1.5 }}>
+              <strong style={{ color: '#0284c7' }}>Registration Guidelines:</strong> Select your trading role, choose your factory business type, and specify your water volume & chemistry parameters. Once registered, you will immediately have the option to test and blend your water in the Water Blender Lab.
+            </div>
+
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              
+              {/* Role Choice */}
+              <div>
+                <label style={{ fontSize: '0.8rem', color: 'var(--text-heading)', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
+                  Facility Role in AquaSwap:
+                </label>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="button"
+                    className={`tab-pill ${type === 'supplier' ? 'active' : ''}`}
+                    onClick={() => setType('supplier')}
+                    style={{ flex: 1, justifyContent: 'center' }}
+                  >
+                    Water Supplier (Discharge Source)
+                  </button>
+                  <button
+                    type="button"
+                    className={`tab-pill ${type === 'buyer' ? 'active' : ''}`}
+                    onClick={() => setType('buyer')}
+                    style={{ flex: 1, justifyContent: 'center' }}
+                  >
+                    Water Buyer (Industrial Intake)
+                  </button>
+                </div>
+              </div>
+
+              {/* 1-Click Industry Templates */}
+              <div>
+                <label style={{ fontSize: '0.8rem', color: 'var(--text-heading)', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
+                  Industry Template (Pre-fills standard chemistry baseline):
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className={`tab-pill ${selectedTemplate === 'textile' ? 'active' : ''}`}
+                    onClick={() => applyTemplate('textile')}
+                    style={{ fontSize: '0.75rem', justifyContent: 'center' }}
+                  >
+                    Textile Dyeing & Finishing
+                  </button>
+                  <button
+                    type="button"
+                    className={`tab-pill ${selectedTemplate === 'beverage' ? 'active' : ''}`}
+                    onClick={() => applyTemplate('beverage')}
+                    style={{ fontSize: '0.75rem', justifyContent: 'center' }}
+                  >
+                    Food & Beverage Processing
+                  </button>
+                  <button
+                    type="button"
+                    className={`tab-pill ${selectedTemplate === 'concrete' ? 'active' : ''}`}
+                    onClick={() => applyTemplate('concrete')}
+                    style={{ fontSize: '0.75rem', justifyContent: 'center' }}
+                  >
+                    Concrete Batching Plant
+                  </button>
+                  <button
+                    type="button"
+                    className={`tab-pill ${selectedTemplate === 'cooling' ? 'active' : ''}`}
+                    onClick={() => applyTemplate('cooling')}
+                    style={{ fontSize: '0.75rem', justifyContent: 'center' }}
+                  >
+                    Cooling Towers Makeup
+                  </button>
+                </div>
+              </div>
+
+              {/* Name & Volume */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-heading)', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                    Facility Name:
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Acme Industrial Ltd"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-heading)', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                    {type === 'supplier' ? 'Daily Discharge Flow (m³):' : 'Daily Water Needed (m³):'}
                   </label>
                   <input
                     type="number"
-                    step={f.key === 'ph' ? '0.1' : '1'}
-                    value={chem[f.key]}
-                    onChange={(e) => setChem((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                    style={{ width: '100%' }}
+                    min="20"
+                    max="2000"
+                    value={volume}
+                    onChange={(e) => setVolume(e.target.value)}
                   />
                 </div>
-              ))}
-            </div>
+              </div>
 
-            <button
-              type="button"
-              className="tab-pill"
-              onClick={() => setShowChem(!showChem)}
-              style={{ marginTop: '10px', fontSize: '0.74rem' }}
-            >
-              {showChem ? '− Hide sector-specific parameters' : '+ More parameters (sector-specific)'}
-            </button>
-
-            {showChem && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginTop: '10px' }}>
-                {EXTENDED_FIELDS.map((f) => (
-                  <div key={f.key}>
-                    <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>
-                      {f.label} {f.unit && <span style={{ opacity: 0.7 }}>({f.unit})</span>}:
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={chem[f.key]}
-                      onChange={(e) => setChem((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                      style={{ width: '100%' }}
-                    />
+              {/* Chemistry Parameters */}
+              <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-heading)', marginBottom: '8px', fontWeight: 600 }}>
+                  Water Chemistry Parameters:
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>TDS (mg/L)</label>
+                    <input type="number" value={tds} onChange={(e) => setTds(e.target.value)} style={{ padding: '6px', fontSize: '0.8rem' }} />
                   </div>
-                ))}
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', alignSelf: 'end' }}>
-                  Only the parameters an industry tracks are enforced — leave the rest at 0.
+                  <div>
+                    <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Chlorides (mg/L)</label>
+                    <input type="number" value={chlorides} onChange={(e) => setChlorides(e.target.value)} style={{ padding: '6px', fontSize: '0.8rem' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Sulfates (mg/L)</label>
+                    <input type="number" value={sulfates} onChange={(e) => setSulfates(e.target.value)} style={{ padding: '6px', fontSize: '0.8rem' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>COD (mg/L)</label>
+                    <input type="number" value={cod} onChange={(e) => setCod(e.target.value)} style={{ padding: '6px', fontSize: '0.8rem' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>BOD (mg/L)</label>
+                    <input type="number" value={bod} onChange={(e) => setBod(e.target.value)} style={{ padding: '6px', fontSize: '0.8rem' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>pH (6.0 - 9.0)</label>
+                    <input type="number" step="0.1" value={ph} onChange={(e) => setPh(e.target.value)} style={{ padding: '6px', fontSize: '0.8rem' }} />
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
 
-          {/* Submit */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>
-              Cancel
-            </button>
-            <button type="submit" className="btn btn-primary btn-sm">
-              <PlusCircle size={15} />
-              <span>Add to Network</span>
-            </button>
-          </div>
-        </form>
+              {/* Submit */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={handleClose}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary btn-sm">
+                  <PlusCircle size={15} />
+                  <span>Register Facility Profile</span>
+                </button>
+              </div>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );

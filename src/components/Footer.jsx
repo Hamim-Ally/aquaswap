@@ -1,93 +1,60 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Droplets, CheckCircle2 } from 'lucide-react';
+import { Droplets } from 'lucide-react';
 
-export default function Footer({ onOpenSavingsCalculator, onOpenESGCertificate, onOpenHowItWorks }) {
+export default function Footer({ onOpenESGCertificate, onOpenHowItWorks, onOpenSignIn }) {
   return (
     <footer
       style={{
         borderTop: '1px solid var(--border-light)',
-        padding: '48px 24px 32px 24px',
-        background: 'rgba(5, 7, 14, 0.98)',
+        padding: '36px 24px 28px 24px',
+        background: '#ffffff',
         fontSize: '0.82rem',
-        color: 'var(--text-muted)'
+        color: '#64748b'
       }}
     >
       <div
         style={{
-          maxWidth: '1280px',
+          maxWidth: '1200px',
           margin: '0 auto',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '32px',
-          borderBottom: '1px solid var(--border-light)',
-          paddingBottom: '36px',
-          marginBottom: '24px'
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '24px'
         }}
       >
-        {/* Col 1 */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#fff', fontWeight: 800, fontSize: '1.1rem' }}>
-            <Droplets size={20} color="#0ea5e9" />
-            <span>AquaSwap</span>
+        {/* Brand */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#f0f9ff', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Droplets size={16} />
           </div>
-          <p style={{ marginTop: '10px', lineHeight: 1.6, color: 'var(--text-muted)' }}>
-            Industrial Symbiosis & Multi-Contaminant Water Optimization Engine.
-          </p>
-        </div>
-
-        {/* Col 2 */}
-        <div>
-          <strong style={{ color: '#fff', display: 'block', marginBottom: '10px' }}>Platform Pages</strong>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <Link to="/optimizer" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Exchange Network</Link>
-            <Link to="/blender" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Water Blender Lab</Link>
-            <Link to="/fleet" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Fleet &amp; Matchmaker</Link>
-            <Link to="/compliance" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Safety &amp; ESG</Link>
-          </div>
-        </div>
-
-        {/* Col 3 */}
-        <div>
-          <strong style={{ color: '#fff', display: 'block', marginBottom: '10px' }}>Tools & Audits</strong>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <button onClick={onOpenSavingsCalculator} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', textAlign: 'left', cursor: 'pointer', padding: 0 }}>
-              Factory ROI Calculator
-            </button>
-            <button onClick={onOpenESGCertificate} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', textAlign: 'left', cursor: 'pointer', padding: 0 }}>
-              ESG Water Stewardship
-            </button>
-            <button onClick={onOpenHowItWorks} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', textAlign: 'left', cursor: 'pointer', padding: 0 }}>
-              Jargon Buster Dictionary
-            </button>
-          </div>
-        </div>
-
-        {/* Col 4 */}
-        <div>
-          <strong style={{ color: '#fff', display: 'block', marginBottom: '10px' }}>Standards</strong>
-          <p style={{ lineHeight: 1.6, color: 'var(--text-muted)' }}>
-            Implements ASTM C1602 (Concrete Mixing Specification), Bangladesh ECR 2023, and UN Sustainable Development Goals 6, 9 & 12.
-          </p>
-        </div>
-      </div>
-
-      {/* Compliance chip row — Bindplane-style trust badges */}
-      <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '22px' }}>
-        {['ASTM C1602', 'Bangladesh ECR 2023', 'SCADA Fail-Safe', 'CSRD Ready', 'SDG 6 · 9 · 12'].map((s) => (
-          <span key={s} className="comply-chip">
-            <CheckCircle2 size={12} color="#34d399" />
-            {s}
+          <span style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>
+            AquaSwap
           </span>
-        ))}
-      </div>
+          <span style={{ color: '#cbd5e1', margin: '0 4px' }}>•</span>
+          <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+            Industrial Water Reuse Marketplace
+          </span>
+        </div>
 
-      <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-        <span>© {new Date().getFullYear()} AquaSwap™ Technologies. All rights reserved.</span>
-        <div style={{ display: 'flex', gap: '16px' }}>
-          <span>Zero River Discharge Initiative</span>
-          <span>•</span>
-          <span>Decentralized Industrial Symbiosis</span>
+        {/* Navigation Links */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+          <Link to="/optimizer" style={{ color: '#64748b', textDecoration: 'none' }}>Exchange Network</Link>
+          <Link to="/blender" style={{ color: '#64748b', textDecoration: 'none' }}>Water Blender</Link>
+          <Link to="/fleet" style={{ color: '#64748b', textDecoration: 'none' }}>Fleet Map</Link>
+          <Link to="/compliance" style={{ color: '#64748b', textDecoration: 'none' }}>Safety & ESG</Link>
+          <button
+            onClick={onOpenSignIn}
+            style={{ background: 'none', border: 'none', color: '#0284c7', cursor: 'pointer', padding: 0, fontSize: '0.82rem', fontWeight: 600 }}
+          >
+            Mock Login
+          </button>
+        </div>
+
+        {/* Copyright */}
+        <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
+          © {new Date().getFullYear()} AquaSwap
         </div>
       </div>
     </footer>
