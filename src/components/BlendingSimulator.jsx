@@ -650,29 +650,53 @@ export default function BlendingSimulator({ cluster, optimizationResults, onOpen
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* 1. TOP HEADER & WORKFLOW TABS */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <h1 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0f172a' }}>
+      {/* 1. TOP HEADER & WORKFLOW TABS (All in ONE Single Row) */}
+      <div
+        className="mobile-stack"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '16px',
+          borderBottom: '1px solid var(--border-light)',
+          paddingBottom: '16px'
+        }}
+      >
+        <div style={{ minWidth: 0, flex: '1 1 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-head, #0f172a)', margin: 0 }}>
               Water Sourcing & Multi-Factory Blender Lab
             </h1>
-            <span className="status-pill status-cyan">
+            <span className="status-pill status-cyan" style={{ fontSize: '0.72rem', flexShrink: 0 }}>
               Engineering Simulator
             </span>
           </div>
-          <p style={{ color: '#475569', fontSize: '0.86rem', marginTop: '3px' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: '3px 0 0 0' }}>
             Analyze plant water requirements, evaluate local supplier efficiency, and simulate multi-source factory blends.
           </p>
         </div>
 
-        {/* Workflow Phase Tabs */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#f1f5f9', padding: '3px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+        {/* Workflow Phase Tabs - Strictly in ONE Row */}
+        <div
+          className="mobile-scroll-row"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            background: '#f1f5f9',
+            padding: '3px',
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+            flexShrink: 0,
+            whiteSpace: 'nowrap'
+          }}
+        >
           <button
             type="button"
             className={`tab-pill ${activeWorkflowTab === 'step1' ? 'active' : ''}`}
             onClick={() => setActiveWorkflowTab('step1')}
-            style={{ fontSize: '0.78rem', padding: '5px 12px' }}
+            style={{ height: '32px', fontSize: '0.78rem', padding: '0 12px', borderRadius: '6px', boxSizing: 'border-box' }}
           >
             1. Demand Analysis
           </button>
@@ -680,7 +704,7 @@ export default function BlendingSimulator({ cluster, optimizationResults, onOpen
             type="button"
             className={`tab-pill ${activeWorkflowTab === 'step2' ? 'active' : ''}`}
             onClick={() => setActiveWorkflowTab('step2')}
-            style={{ fontSize: '0.78rem', padding: '5px 12px' }}
+            style={{ height: '32px', fontSize: '0.78rem', padding: '0 12px', borderRadius: '6px', boxSizing: 'border-box' }}
           >
             2. Sourcing Efficiency
           </button>
@@ -688,7 +712,7 @@ export default function BlendingSimulator({ cluster, optimizationResults, onOpen
             type="button"
             className={`tab-pill ${activeWorkflowTab === 'step3' ? 'active' : ''}`}
             onClick={() => setActiveWorkflowTab('step3')}
-            style={{ fontSize: '0.78rem', padding: '5px 12px' }}
+            style={{ height: '32px', fontSize: '0.78rem', padding: '0 12px', borderRadius: '6px', boxSizing: 'border-box' }}
           >
             3. Multi-Factory Blender
           </button>

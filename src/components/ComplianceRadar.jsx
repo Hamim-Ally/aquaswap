@@ -47,340 +47,459 @@ export default function ComplianceRadar({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      
-      {/* 1. Clean Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-heading)', margin: 0 }}>
-            Safety & Contracts
-          </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.86rem', marginTop: '4px', margin: '4px 0 0 0' }}>
-            Automated inline SCADA shutoff telemetry and verified supply agreements.
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button className="btn btn-secondary btn-sm" onClick={handlePrint}>
-            <Printer size={14} />
-            <span>Print Report</span>
-          </button>
-          {onOpenESGCertificate && (
-            <button className="btn btn-primary btn-sm" onClick={onOpenESGCertificate}>
-              <Award size={14} />
-              <span>ESG Certificate</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* 2. Simple Navigation Tabs */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '6px',
-          background: 'var(--bg-card)',
-          padding: '4px',
-          borderRadius: 'var(--radius-md)',
-          border: '1px solid var(--border-light)',
-          width: 'fit-content'
-        }}
-      >
-        <button
-          className={`tab-pill ${activeTab === 'safety' ? 'active' : ''}`}
-          onClick={() => setActiveTab('safety')}
-        >
-          <Zap size={14} />
-          <span>SCADA Safety Valve</span>
-        </button>
-
-        <button
-          className={`tab-pill ${activeTab === 'contracts' ? 'active' : ''}`}
-          onClick={() => setActiveTab('contracts')}
-        >
-          <FileCheck2 size={14} />
-          <span>Water Purchase Agreement</span>
-        </button>
-      </div>
-
+    <div>
       {/* ========================================================================= */}
-      {/* TAB 1: SCADA SAFETY VALVE SIMULATOR */}
+      {/* 1. INTERACTIVE SCREEN UI (Hidden on Print) */}
       {/* ========================================================================= */}
-      {activeTab === 'safety' && (
-        <div
-          className="ui-card"
-          style={{
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '20px',
-            background: 'var(--bg-card)',
-            border: isDiverted ? '1px solid #fca5a5' : '1px solid var(--border-light)'
-          }}
-        >
-          {/* Status Banner */}
-          <div
-            style={{
-              padding: '16px 20px',
-              borderRadius: 'var(--radius-md)',
-              background: isDiverted ? '#fef2f2' : '#f0fdf4',
-              border: `1px solid ${isDiverted ? '#fecaca' : '#bbf7d0'}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '12px'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <div
-                style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '8px',
-                  background: isDiverted ? '#fee2e2' : '#dcfce7',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0
-                }}
-              >
-                {isDiverted ? (
-                  <AlertTriangle size={24} color="#e11d48" />
-                ) : (
-                  <ShieldCheck size={24} color="#16a34a" />
-                )}
-              </div>
-
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '0.95rem', fontWeight: 700, color: isDiverted ? '#991b1b' : '#166534' }}>
-                    {isDiverted ? 'Automatic Shutoff: Diversion Active' : 'Water Dispatch Active (Quality Approved)'}
-                  </span>
-                  <span className="mono" style={{ fontSize: '0.72rem', color: isDiverted ? '#991b1b' : '#166534', background: isDiverted ? '#fee2e2' : '#dcfce7', padding: '2px 6px', borderRadius: '4px' }}>
-                    &lt;200ms
-                  </span>
-                </div>
-                <div style={{ fontSize: '0.8rem', color: isDiverted ? '#7f1d1d' : '#14532d', marginTop: '2px' }}>
-                  {isDiverted
-                    ? `Threshold breached (TDS: ${onlineTds} mg/L, pH: ${onlinePh}). Valve closed. ৳0 delivery charge.`
-                    : `Telemetry verified: TDS ${onlineTds} mg/L (limit: ${maxAllowedTds.toLocaleString()}), pH ${onlinePh}.`}
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Test Actions */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginRight: '4px' }}>Test:</span>
-              <button
-                className="btn btn-secondary btn-sm"
-                style={{ fontSize: '0.74rem', padding: '4px 8px' }}
-                onClick={() => handlePresetTest(1800, 7.4)}
-              >
-                Normal
-              </button>
-              <button
-                className="btn btn-secondary btn-sm"
-                style={{ fontSize: '0.74rem', padding: '4px 8px' }}
-                onClick={() => handlePresetTest(52000, 7.2)}
-              >
-                Salinity Spike
-              </button>
-              <button
-                className="btn btn-secondary btn-sm"
-                style={{ fontSize: '0.74rem', padding: '4px 8px' }}
-                onClick={() => handlePresetTest(2200, 4.6)}
-              >
-                Acid Spike
-              </button>
-            </div>
-          </div>
-
-          {/* Sliders Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-            
-            {/* TDS */}
-            <div style={{ padding: '14px', background: '#f8fafc', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: '8px' }}>
-                <span style={{ color: 'var(--text-heading)', fontWeight: 600 }}>TDS (Total Salinity)</span>
-                <span className="mono" style={{ color: onlineTds > maxAllowedTds ? '#e11d48' : '#0284c7', fontWeight: 700 }}>
-                  {onlineTds.toLocaleString()} mg/L
-                </span>
-              </div>
-              <input
-                type="range"
-                min="500"
-                max="60000"
-                step="500"
-                value={onlineTds}
-                onChange={(e) => setOnlineTds(parseInt(e.target.value, 10))}
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                <span>Freshwater: &lt;500 mg/L</span>
-                <span style={{ color: '#0284c7', fontWeight: 600 }}>Limit: {maxAllowedTds.toLocaleString()} mg/L</span>
-              </div>
-            </div>
-
-            {/* pH */}
-            <div style={{ padding: '14px', background: '#f8fafc', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: '8px' }}>
-                <span style={{ color: 'var(--text-heading)', fontWeight: 600 }}>Acidity / pH Level</span>
-                <span className="mono" style={{ color: onlinePh < 6 || onlinePh > 9 ? '#e11d48' : '#16a34a', fontWeight: 700 }}>
-                  {onlinePh.toFixed(1)} pH
-                </span>
-              </div>
-              <input
-                type="range"
-                min="4.0"
-                max="12.0"
-                step="0.1"
-                value={onlinePh}
-                onChange={(e) => setOnlinePh(parseFloat(e.target.value))}
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                <span>Acid (&lt;6.0)</span>
-                <span style={{ color: '#16a34a', fontWeight: 600 }}>Safe Window: 6.0 – 9.0</span>
-                <span>Alkaline (&gt;9.0)</span>
-              </div>
-            </div>
-
-          </div>
-
-          <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-            Hardware Fail-Safe: Valves automatically divert to containment if power or sensor signal is interrupted.
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* TAB 2: WATER PURCHASE AGREEMENT (WPA) */}
-      {/* ========================================================================= */}
-      {activeTab === 'contracts' && (
-        <div
-          className="ui-card"
-          style={{
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '18px',
-            background: '#ffffff',
-            border: '1px solid var(--border-light)',
-            borderRadius: 'var(--radius-md)'
-          }}
-        >
-          {/* Header row */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
-                  Active Supply Agreement
-                </h2>
-                <span className="status-pill status-emerald">Active Contract</span>
-              </div>
-              <span className="mono" style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                {contractId}
-              </span>
-            </div>
-
-            <button className="btn btn-secondary btn-sm" onClick={handlePrint}>
-              <FileText size={14} />
-              <span>Export PDF</span>
-            </button>
-          </div>
-
-          {/* Key Terms Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-            
-            <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', display: 'block', fontWeight: 600 }}>SUPPLIER &rarr; BUYER</span>
-              <strong style={{ color: 'var(--text-main)', fontSize: '0.88rem', display: 'block', marginTop: '2px' }}>
-                {sup.name?.split(' ')[0]} &rarr; {buy.name?.split(' ')[0]}
-              </strong>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>{sup.sector} to {buy.sector}</div>
-            </div>
-
-            <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', display: 'block', fontWeight: 600 }}>DAILY SUPPLY VOLUME</span>
-              <div className="mono" style={{ color: '#0284c7', fontWeight: 800, fontSize: '1.2rem', marginTop: '2px' }}>
-                {dailyVolume} <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>m³/day</span>
-              </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>Certified tanker carriers</div>
-            </div>
-
-            <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', display: 'block', fontWeight: 600 }}>AGREED TARIFF</span>
-              <div className="mono" style={{ color: '#059669', fontWeight: 800, fontSize: '1.2rem', marginTop: '2px' }}>
-                ৳ {agreedTariff.toFixed(0)} <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>/ m³</span>
-              </div>
-              <div style={{ fontSize: '0.72rem', color: '#059669', marginTop: '2px', fontWeight: 600 }}>
-                Saves {tariffSavingsPercent}% vs municipal
-              </div>
-            </div>
-
-            <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', display: 'block', fontWeight: 600 }}>QUALITY STANDARD</span>
-              <strong style={{ color: 'var(--text-main)', fontSize: '0.88rem', display: 'block', marginTop: '2px' }}>
-                ASTM C1602 Compliant
-              </strong>
-              <div style={{ fontSize: '0.72rem', color: '#059669', marginTop: '2px' }}>Zero-cost liability on breach</div>
-            </div>
-
-          </div>
-
-          {/* Toggle Full Legal Clauses */}
+      <div className="screen-only" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <button
-              type="button"
-              onClick={() => setShowFullContract(!showFullContract)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#0284c7',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '6px 0'
-              }}
-            >
-              <span>{showFullContract ? 'Hide Legal Clauses' : 'View Full Legal Clauses'}</span>
-              {showFullContract ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-heading)', margin: 0 }}>
+              Safety & Contracts
+            </h1>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.86rem', marginTop: '4px', margin: '4px 0 0 0' }}>
+              Automated inline SCADA shutoff telemetry and verified supply agreements.
+            </p>
+          </div>
 
-            {showFullContract && (
-              <div
-                style={{
-                  marginTop: '8px',
-                  padding: '16px',
-                  background: '#f8fafc',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-light)',
-                  fontSize: '0.8rem',
-                  lineHeight: 1.6,
-                  color: 'var(--text-body)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '10px'
-                }}
-              >
-                <div>
-                  <strong>Article 1 (Quality Warranty):</strong> Supplier warrants that water supplied complies with agreed limits (TDS &le; {maxAllowedTds.toLocaleString()} mg/L, pH 6.0&ndash;9.0).
-                </div>
-                <div>
-                  <strong>Article 2 (Automatic Indemnity):</strong> Any delivery triggering SCADA telemetry shutdown is diverted to containment with ৳0 liability to Buyer.
-                </div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                  Record SHA-256: 4f8b91c0e3a89073e82a0d922bc01 &bull; Verified under Industrial Symbiosis Guidelines
-                </div>
-              </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button className="btn btn-secondary btn-sm" onClick={handlePrint} title="Generate official printable audit report & PDF">
+              <Printer size={14} />
+              <span>Print Report</span>
+            </button>
+            {onOpenESGCertificate && (
+              <button className="btn btn-primary btn-sm" onClick={onOpenESGCertificate}>
+                <Award size={14} />
+                <span>ESG Certificate</span>
+              </button>
             )}
           </div>
-
         </div>
-      )}
 
+        {/* Navigation Tabs */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '6px',
+            background: 'var(--bg-card)',
+            padding: '4px',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border-light)',
+            width: 'fit-content'
+          }}
+        >
+          <button
+            className={`tab-pill ${activeTab === 'safety' ? 'active' : ''}`}
+            onClick={() => setActiveTab('safety')}
+          >
+            <Zap size={14} />
+            <span>SCADA Safety Valve</span>
+          </button>
+
+          <button
+            className={`tab-pill ${activeTab === 'contracts' ? 'active' : ''}`}
+            onClick={() => setActiveTab('contracts')}
+          >
+            <FileCheck2 size={14} />
+            <span>Water Purchase Agreement</span>
+          </button>
+        </div>
+
+        {/* TAB 1: SCADA SAFETY VALVE SIMULATOR */}
+        {activeTab === 'safety' && (
+          <div
+            className="ui-card"
+            style={{
+              padding: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '20px',
+              background: 'var(--bg-card)',
+              border: isDiverted ? '1px solid #fca5a5' : '1px solid var(--border-light)'
+            }}
+          >
+            {/* Status Banner */}
+            <div
+              style={{
+                padding: '16px 20px',
+                borderRadius: 'var(--radius-md)',
+                background: isDiverted ? '#fef2f2' : '#f0fdf4',
+                border: `1px solid ${isDiverted ? '#fecaca' : '#bbf7d0'}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '8px',
+                    background: isDiverted ? '#fee2e2' : '#dcfce7',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}
+                >
+                  {isDiverted ? (
+                    <AlertTriangle size={24} color="#e11d48" />
+                  ) : (
+                    <ShieldCheck size={24} color="#16a34a" />
+                  )}
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 700, color: isDiverted ? '#991b1b' : '#166534' }}>
+                      {isDiverted ? 'Automatic Shutoff: Diversion Active' : 'Water Dispatch Active (Quality Approved)'}
+                    </span>
+                    <span className="mono" style={{ fontSize: '0.72rem', color: isDiverted ? '#991b1b' : '#166534', background: isDiverted ? '#fee2e2' : '#dcfce7', padding: '2px 6px', borderRadius: '4px' }}>
+                      &lt;200ms
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: isDiverted ? '#7f1d1d' : '#14532d', marginTop: '2px' }}>
+                    {isDiverted
+                      ? `Threshold breached (TDS: ${onlineTds} mg/L, pH: ${onlinePh}). Valve closed. ৳0 delivery charge.`
+                      : `Telemetry verified: TDS ${onlineTds} mg/L (limit: ${maxAllowedTds.toLocaleString()}), pH ${onlinePh}.`}
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Test Actions */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginRight: '4px' }}>Test:</span>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  style={{ fontSize: '0.74rem', padding: '4px 8px' }}
+                  onClick={() => handlePresetTest(1800, 7.4)}
+                >
+                  Normal
+                </button>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  style={{ fontSize: '0.74rem', padding: '4px 8px' }}
+                  onClick={() => handlePresetTest(52000, 7.2)}
+                >
+                  Salinity Spike
+                </button>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  style={{ fontSize: '0.74rem', padding: '4px 8px' }}
+                  onClick={() => handlePresetTest(2200, 4.6)}
+                >
+                  Acid Spike
+                </button>
+              </div>
+            </div>
+
+            {/* Sliders Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+              
+              {/* TDS */}
+              <div style={{ padding: '14px', background: '#f8fafc', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: '8px' }}>
+                  <span style={{ color: 'var(--text-heading)', fontWeight: 600 }}>TDS (Total Salinity)</span>
+                  <span className="mono" style={{ color: onlineTds > maxAllowedTds ? '#e11d48' : '#0284c7', fontWeight: 700 }}>
+                    {onlineTds.toLocaleString()} mg/L
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="500"
+                  max="60000"
+                  step="500"
+                  value={onlineTds}
+                  onChange={(e) => setOnlineTds(parseInt(e.target.value, 10))}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  <span>Freshwater: &lt;500 mg/L</span>
+                  <span style={{ color: '#0284c7', fontWeight: 600 }}>Limit: {maxAllowedTds.toLocaleString()} mg/L</span>
+                </div>
+              </div>
+
+              {/* pH */}
+              <div style={{ padding: '14px', background: '#f8fafc', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: '8px' }}>
+                  <span style={{ color: 'var(--text-heading)', fontWeight: 600 }}>Acidity / pH Level</span>
+                  <span className="mono" style={{ color: onlinePh < 6 || onlinePh > 9 ? '#e11d48' : '#16a34a', fontWeight: 700 }}>
+                    {onlinePh.toFixed(1)} pH
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="4.0"
+                  max="12.0"
+                  step="0.1"
+                  value={onlinePh}
+                  onChange={(e) => setOnlinePh(parseFloat(e.target.value))}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  <span>Acid (&lt;6.0)</span>
+                  <span style={{ color: '#16a34a', fontWeight: 600 }}>Safe Window: 6.0 – 9.0</span>
+                  <span>Alkaline (&gt;9.0)</span>
+                </div>
+              </div>
+
+            </div>
+
+            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+              Hardware Fail-Safe: Valves automatically divert to containment if power or sensor signal is interrupted.
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: WATER PURCHASE AGREEMENT (WPA) */}
+        {activeTab === 'contracts' && (
+          <div
+            className="ui-card"
+            style={{
+              padding: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '18px',
+              background: '#ffffff',
+              border: '1px solid var(--border-light)',
+              borderRadius: 'var(--radius-md)'
+            }}
+          >
+            {/* Header row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                    Active Supply Agreement
+                  </h2>
+                  <span className="status-pill status-emerald">Active Contract</span>
+                </div>
+                <span className="mono" style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                  {contractId}
+                </span>
+              </div>
+
+              <button className="btn btn-secondary btn-sm" onClick={handlePrint} title="Export formal PDF agreement">
+                <FileText size={14} />
+                <span>Export PDF</span>
+              </button>
+            </div>
+
+            {/* Key Terms Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+              
+              <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', display: 'block', fontWeight: 600 }}>SUPPLIER &rarr; BUYER</span>
+                <strong style={{ color: 'var(--text-main)', fontSize: '0.88rem', display: 'block', marginTop: '2px' }}>
+                  {sup.name?.split(' ')[0]} &rarr; {buy.name?.split(' ')[0]}
+                </strong>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>{sup.sector} to {buy.sector}</div>
+              </div>
+
+              <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', display: 'block', fontWeight: 600 }}>DAILY SUPPLY VOLUME</span>
+                <div className="mono" style={{ color: '#0284c7', fontWeight: 800, fontSize: '1.2rem', marginTop: '2px' }}>
+                  {dailyVolume} <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>m³/day</span>
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>Certified tanker carriers</div>
+              </div>
+
+              <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', display: 'block', fontWeight: 600 }}>AGREED TARIFF</span>
+                <div className="mono" style={{ color: '#059669', fontWeight: 800, fontSize: '1.2rem', marginTop: '2px' }}>
+                  ৳ {agreedTariff.toFixed(0)} <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>/ m³</span>
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#059669', marginTop: '2px', fontWeight: 600 }}>
+                  Saves {tariffSavingsPercent}% vs municipal
+                </div>
+              </div>
+
+              <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', display: 'block', fontWeight: 600 }}>QUALITY STANDARD</span>
+                <strong style={{ color: 'var(--text-main)', fontSize: '0.88rem', display: 'block', marginTop: '2px' }}>
+                  ASTM C1602 Compliant
+                </strong>
+                <div style={{ fontSize: '0.72rem', color: '#059669', marginTop: '2px' }}>Zero-cost liability on breach</div>
+              </div>
+
+            </div>
+
+            {/* Toggle Full Legal Clauses */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowFullContract(!showFullContract)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#0284c7',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '6px 0'
+                }}
+              >
+                <span>{showFullContract ? 'Hide Legal Clauses' : 'View Full Legal Clauses'}</span>
+                {showFullContract ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+
+              {showFullContract && (
+                <div
+                  style={{
+                    marginTop: '8px',
+                    padding: '16px',
+                    background: '#f8fafc',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-light)',
+                    fontSize: '0.8rem',
+                    lineHeight: 1.6,
+                    color: 'var(--text-body)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px'
+                  }}
+                >
+                  <div>
+                    <strong>Article 1 (Quality Warranty):</strong> Supplier warrants that water supplied complies with agreed limits (TDS &le; {maxAllowedTds.toLocaleString()} mg/L, pH 6.0&ndash;9.0).
+                  </div>
+                  <div>
+                    <strong>Article 2 (Automatic Indemnity):</strong> Any delivery triggering SCADA telemetry shutdown is diverted to containment with ৳0 liability to Buyer.
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    Record SHA-256: 4f8b91c0e3a89073e82a0d922bc01 &bull; Verified under Industrial Symbiosis Guidelines
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>
+        )}
+
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 2. OFFICIAL PRINT-ONLY AUDIT & CONTRACT DOCUMENT (Renders strictly on Print) */}
+      {/* ========================================================================= */}
+      <div className="print-only print-document">
+        
+        {/* Document Header & Authority Seal */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #0f172a', paddingBottom: '14px', marginBottom: '18px' }}>
+          <div>
+            <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.02em', textTransform: 'uppercase' }}>
+              AquaSwap Industrial Water Exchange Network
+            </div>
+            <div style={{ fontSize: '0.84rem', color: '#475569', marginTop: '2px' }}>
+              Official Bilateral Water Purchase Agreement (WPA) & SCADA Telemetry Audit Certification
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div className="mono" style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0284c7' }}>
+              {contractId}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+              Cluster: {cluster.name} • Issued: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+            </div>
+          </div>
+        </div>
+
+        {/* Contracting Parties Summary Box */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '18px', padding: '12px 16px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px' }}>
+          <div>
+            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Supplier (Effluent Reclaiming Partner)</div>
+            <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>{sup.name}</div>
+            <div style={{ fontSize: '0.78rem', color: '#475569', marginTop: '1px' }}>Sector: {sup.sector} • Certified Capacity: {sup.capacityW} m³/day</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Buyer (Process Water Offtaker)</div>
+            <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>{buy.name}</div>
+            <div style={{ fontSize: '0.78rem', color: '#475569', marginTop: '1px' }}>Sector: {buy.sector} • Process Water Demand: {buy.demandD} m³/day</div>
+          </div>
+        </div>
+
+        {/* Verified Commercial & Operating Specs Table */}
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '18px', fontSize: '0.82rem' }}>
+          <thead>
+            <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #cbd5e1' }}>
+              <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700 }}>Operating Metric / Parameter</th>
+              <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700 }}>Contracted Standard</th>
+              <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700 }}>SCADA Inline Telemetry Status</th>
+              <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700 }}>Regulatory Verification</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+              <td style={{ padding: '8px 10px', fontWeight: 600 }}>Contracted Daily Consignment</td>
+              <td style={{ padding: '8px 10px' }}>{dailyVolume} m³/day</td>
+              <td style={{ padding: '8px 10px' }}>Certified Haul Dispatched</td>
+              <td style={{ padding: '8px 10px', color: '#16a34a', fontWeight: 700 }}>Approved</td>
+            </tr>
+            <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+              <td style={{ padding: '8px 10px', fontWeight: 600 }}>Agreed Reclaimed Water Tariff</td>
+              <td style={{ padding: '8px 10px' }}>৳ {agreedTariff.toFixed(0)} / m³</td>
+              <td style={{ padding: '8px 10px' }}>Saves {tariffSavingsPercent}% vs municipal baseline</td>
+              <td style={{ padding: '8px 10px', color: '#16a34a', fontWeight: 700 }}>Binding Commercial Term</td>
+            </tr>
+            <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+              <td style={{ padding: '8px 10px', fontWeight: 600 }}>TDS Maximum Limit</td>
+              <td style={{ padding: '8px 10px' }}>&le; {maxAllowedTds.toLocaleString()} mg/L</td>
+              <td style={{ padding: '8px 10px' }}>Telemetry: {onlineTds.toLocaleString()} mg/L</td>
+              <td style={{ padding: '8px 10px', color: onlineTds <= maxAllowedTds ? '#16a34a' : '#dc2626', fontWeight: 700 }}>
+                {onlineTds <= maxAllowedTds ? 'Verified Safe & Compliant' : 'Diversion Triggered'}
+              </td>
+            </tr>
+            <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+              <td style={{ padding: '8px 10px', fontWeight: 600 }}>Acidity / Alkalinity (pH Range)</td>
+              <td style={{ padding: '8px 10px' }}>6.0 &ndash; 9.0 Standard Buffer</td>
+              <td style={{ padding: '8px 10px' }}>Telemetry: {onlinePh.toFixed(1)} pH</td>
+              <td style={{ padding: '8px 10px', color: (onlinePh >= 6.0 && onlinePh <= 9.0) ? '#16a34a' : '#dc2626', fontWeight: 700 }}>
+                {(onlinePh >= 6.0 && onlinePh <= 9.0) ? 'Standard Range' : 'Exceedance Violation'}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* SCADA Telemetry & Indemnity Guarantee */}
+        <div style={{ marginBottom: '20px', padding: '12px 14px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px' }}>
+          <div style={{ fontWeight: 800, fontSize: '0.82rem', color: '#0f172a', marginBottom: '4px' }}>
+            AUTOMATIC TELEMETRY FAIL-SAFE & INDEMNITY (Article 2)
+          </div>
+          <div style={{ fontSize: '0.76rem', color: '#334155', lineHeight: 1.45 }}>
+            Deliveries under this WPA are monitored in real time by automated inline SCADA optical sensors. In any instance where chemical limits exceed tolerances (TDS &gt; {maxAllowedTds.toLocaleString()} mg/L or pH &notin; [6.0, 9.0]), pneumatically actuated diverter valves close in under 200ms. Off-spec water is diverted to containment with zero (৳0) tariff liability to {buy.name}.
+          </div>
+        </div>
+
+        {/* Signatures & Verification Block */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #cbd5e1' }}>
+          <div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b' }}>SUPPLIER AUTHORIZATION</div>
+            <div style={{ height: '36px', borderBottom: '1px dashed #94a3b8', margin: '6px 0' }} />
+            <div style={{ fontSize: '0.72rem', color: '#475569' }}>Authorized Signatory, {sup.name}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b' }}>BUYER AUTHORIZATION</div>
+            <div style={{ height: '36px', borderBottom: '1px dashed #94a3b8', margin: '6px 0' }} />
+            <div style={{ fontSize: '0.72rem', color: '#475569' }}>Authorized Signatory, {buy.name}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b' }}>AQUASWAP REGULATORY SEAL</div>
+            <div style={{ height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ border: '2px solid #16a34a', color: '#16a34a', fontWeight: 800, fontSize: '0.72rem', padding: '3px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
+                VERIFIED & AUDITED
+              </span>
+            </div>
+            <div className="mono" style={{ fontSize: '0.64rem', color: '#64748b', textAlign: 'center', marginTop: '2px' }}>
+              SHA-256: 4f8b91c0e3a89073e82a0d922bc01
+            </div>
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }

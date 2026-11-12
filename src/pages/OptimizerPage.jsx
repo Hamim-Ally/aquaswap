@@ -36,7 +36,7 @@ export default function OptimizerPage({
 
       {/* Optimizer Main View */}
       <div
-        className="ui-card"
+        className="ui-card page-main-card"
         style={{
           padding: '32px',
           background: 'var(--bg-card)',

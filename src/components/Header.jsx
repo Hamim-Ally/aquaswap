@@ -8,7 +8,12 @@ import {
   LogOut,
   Sparkles,
   ChevronDown,
-  User
+  User,
+  LayoutDashboard,
+  GitMerge,
+  FlaskConical,
+  Truck,
+  ShieldCheck
 } from 'lucide-react';
 
 export default function Header({
@@ -40,126 +45,75 @@ export default function Header({
   }, [isDropdownOpen]);
 
   return (
-    <header
-      style={{
-        borderBottom: '1px solid var(--border-light)',
-        background: '#ffffff',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03)'
-      }}
-    >
-      <div
-        style={{
-          maxWidth: '1360px',
-          margin: '0 auto',
-          padding: '10px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '16px',
-          flexWrap: 'wrap'
-        }}
-      >
-        {/* Brand Logo & Name */}
-        <Link
-          to="/"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            textDecoration: 'none'
-          }}
-        >
-          <div
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '7px',
-              background: '#f0f9ff',
-              border: '1px solid #bae6fd',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <Droplets size={18} color="#0284c7" />
-          </div>
-          <span style={{ fontSize: '1.15rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#0f172a' }}>
-            AquaSwap
-          </span>
-        </Link>
+    <header className="site-header">
+      {/* 1. Main Header Bar */}
+      <div className="header-top-bar">
+        {/* Left Group: Brand + Desktop Navigation */}
+        <div className="header-left-group">
+          {/* Brand Logo & Name */}
+          <Link to="/" className="header-brand-link">
+            <div className="header-brand-logo">
+              <Droplets size={18} color="#0284c7" />
+            </div>
+            <span className="header-brand-name">AquaSwap</span>
+          </Link>
 
-        {/* Multi-Page Navigation Bar */}
-        <nav
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            flexWrap: 'wrap'
-          }}
-        >
-          <NavLink
-            to="/"
-            end
-            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-          >
-            Overview
-          </NavLink>
+          {/* Elegant Divider between Brand and Nav (Desktop Only) */}
+          <div className="header-brand-divider" />
 
-          <NavLink
-            to="/optimizer"
-            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-          >
-            Exchange Network
-          </NavLink>
+          {/* Desktop Navigation Links */}
+          <nav className="header-desktop-nav">
+            <NavLink
+              to="/"
+              end
+              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+            >
+              Overview
+            </NavLink>
 
-          <NavLink
-            to="/blender"
-            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-          >
-            Water Blender Lab
-          </NavLink>
+            <NavLink
+              to="/optimizer"
+              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+            >
+              Exchange Network
+            </NavLink>
 
-          <NavLink
-            to="/fleet"
-            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-          >
-            Fleet & Matchmaker
-          </NavLink>
+            <NavLink
+              to="/blender"
+              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+            >
+              Water Blender Lab
+            </NavLink>
 
-          <NavLink
-            to="/compliance"
-            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-          >
-            Safety & ESG
-          </NavLink>
-        </nav>
+            <NavLink
+              to="/fleet"
+              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+            >
+              Fleet & Matchmaker
+            </NavLink>
 
-        {/* Right Section: Cluster Selector + Account/Switch Dropdown */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          
+            <NavLink
+              to="/compliance"
+              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+            >
+              Safety & ESG
+            </NavLink>
+          </nav>
+        </div>
+
+        {/* Right Section: Cluster Selector + Account Dropdown */}
+        <div className="header-right-actions">
           {/* Cluster Switcher */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <Building2 size={13} color="#64748b" />
+          <div className="header-cluster-wrap">
+            <Building2 size={13} color="#64748b" className="cluster-icon" />
             <select
               value={selectedCluster.id}
               onChange={(e) => {
                 const found = clusters.find((c) => c.id === e.target.value);
                 if (found) setSelectedCluster(found);
               }}
-              style={{
-                width: 'auto',
-                minWidth: '135px',
-                padding: '5px 8px',
-                fontSize: '0.76rem',
-                borderRadius: '6px',
-                background: '#ffffff',
-                border: '1px solid var(--border-light)',
-                color: '#0f172a',
-                cursor: 'pointer'
-              }}
+              className="header-cluster-select"
+              title="Select Industrial Corridor"
             >
               {clusters.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -169,40 +123,32 @@ export default function Header({
             </select>
           </div>
 
-          <div style={{ width: '1px', height: '20px', background: 'var(--border-light)' }} />
+          <div className="header-actions-divider" />
 
           {/* Unified Login & Switch Dropdown */}
           <div ref={dropdownRef} style={{ position: 'relative' }}>
             <button
               type="button"
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="header-account-btn"
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '7px',
-                padding: '5px 11px',
-                borderRadius: '6px',
                 border: currentUser ? '1px solid var(--border-light)' : '1px solid #bae6fd',
                 background: currentUser ? '#ffffff' : '#f0f9ff',
-                color: currentUser ? 'var(--text-main)' : '#0284c7',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
+                color: currentUser ? 'var(--text-main)' : '#0284c7'
               }}
               title={currentUser ? `Logged in as ${currentUser.name}` : 'Login & Switch Plant'}
             >
               {currentUser ? (
                 <>
-                  <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981', flexShrink: 0 }} />
-                  <span style={{ maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div className="account-status-dot" />
+                  <span className="account-user-name">
                     {currentUser.name}
                   </span>
                 </>
               ) : (
                 <>
                   <User size={13} color="#0284c7" />
-                  <span>Account</span>
+                  <span className="account-user-name">Account</span>
                 </>
               )}
               <ChevronDown
@@ -217,23 +163,7 @@ export default function Header({
 
             {/* Dropdown Menu */}
             {isDropdownOpen && (
-              <div
-                style={{
-                  position: 'absolute',
-                  right: 0,
-                  top: 'calc(100% + 6px)',
-                  width: '230px',
-                  background: '#ffffff',
-                  border: '1px solid var(--border-light)',
-                  borderRadius: 'var(--radius-md)',
-                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
-                  padding: '6px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '2px',
-                  zIndex: 1000
-                }}
-              >
+              <div className="header-account-dropdown">
                 {currentUser ? (
                   <>
                     {/* Active Plant Info Banner */}
@@ -257,23 +187,7 @@ export default function Header({
                         if (onOpenMockAccounts) onOpenMockAccounts();
                         else onOpenSignIn('demo');
                       }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        width: '100%',
-                        padding: '8px 10px',
-                        background: 'none',
-                        border: 'none',
-                        borderRadius: '5px',
-                        fontSize: '0.78rem',
-                        color: 'var(--text-main)',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        fontWeight: 500
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                      className="dropdown-menu-item"
                     >
                       <Sparkles size={14} color="#0284c7" />
                       <span>Switch Plant (16 Mock)</span>
@@ -284,23 +198,7 @@ export default function Header({
                         setIsDropdownOpen(false);
                         onOpenSignIn('signin');
                       }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        width: '100%',
-                        padding: '8px 10px',
-                        background: 'none',
-                        border: 'none',
-                        borderRadius: '5px',
-                        fontSize: '0.78rem',
-                        color: 'var(--text-main)',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        fontWeight: 500
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                      className="dropdown-menu-item"
                     >
                       <LogIn size={14} color="#64748b" />
                       <span>Sign In as Another Plant</span>
@@ -313,23 +211,7 @@ export default function Header({
                         setIsDropdownOpen(false);
                         onLogout();
                       }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        width: '100%',
-                        padding: '8px 10px',
-                        background: 'none',
-                        border: 'none',
-                        borderRadius: '5px',
-                        fontSize: '0.78rem',
-                        color: '#dc2626',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        fontWeight: 600
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = '#fef2f2')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                      className="dropdown-menu-item danger"
                     >
                       <LogOut size={14} color="#dc2626" />
                       <span>Log Out</span>
@@ -342,23 +224,7 @@ export default function Header({
                         setIsDropdownOpen(false);
                         onOpenSignIn('signin');
                       }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        width: '100%',
-                        padding: '8px 10px',
-                        background: 'none',
-                        border: 'none',
-                        borderRadius: '5px',
-                        fontSize: '0.78rem',
-                        color: 'var(--text-main)',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        fontWeight: 600
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                      className="dropdown-menu-item"
                     >
                       <LogIn size={14} color="#0284c7" />
                       <span>Sign In</span>
@@ -370,23 +236,7 @@ export default function Header({
                         if (onOpenMockAccounts) onOpenMockAccounts();
                         else onOpenSignIn('demo');
                       }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        width: '100%',
-                        padding: '8px 10px',
-                        background: 'none',
-                        border: 'none',
-                        borderRadius: '5px',
-                        fontSize: '0.78rem',
-                        color: '#0284c7',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        fontWeight: 600
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f0f9ff')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                      className="dropdown-menu-item highlight"
                     >
                       <Sparkles size={14} color="#0284c7" />
                       <span>Switch / Mock Accounts</span>
@@ -399,23 +249,7 @@ export default function Header({
                         setIsDropdownOpen(false);
                         onOpenSignUp();
                       }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        width: '100%',
-                        padding: '8px 10px',
-                        background: 'none',
-                        border: 'none',
-                        borderRadius: '5px',
-                        fontSize: '0.78rem',
-                        color: '#16a34a',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        fontWeight: 500
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f0fdf4')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                      className="dropdown-menu-item success"
                     >
                       <UserPlus size={14} color="#16a34a" />
                       <span>Register Plant</span>
@@ -427,6 +261,50 @@ export default function Header({
           </div>
         </div>
       </div>
+
+      {/* 2. Mobile App-Style Sub-Navigation Bar (Touch Scrollable, Mobile Only) */}
+      <nav className="header-mobile-subnav">
+        <NavLink
+          to="/"
+          end
+          className={({ isActive }) => `mobile-nav-pill ${isActive ? 'active' : ''}`}
+        >
+          <LayoutDashboard size={13} />
+          <span>Overview</span>
+        </NavLink>
+
+        <NavLink
+          to="/optimizer"
+          className={({ isActive }) => `mobile-nav-pill ${isActive ? 'active' : ''}`}
+        >
+          <GitMerge size={13} />
+          <span>Exchange</span>
+        </NavLink>
+
+        <NavLink
+          to="/blender"
+          className={({ isActive }) => `mobile-nav-pill ${isActive ? 'active' : ''}`}
+        >
+          <FlaskConical size={13} />
+          <span>Blender</span>
+        </NavLink>
+
+        <NavLink
+          to="/fleet"
+          className={({ isActive }) => `mobile-nav-pill ${isActive ? 'active' : ''}`}
+        >
+          <Truck size={13} />
+          <span>Fleet & Match</span>
+        </NavLink>
+
+        <NavLink
+          to="/compliance"
+          className={({ isActive }) => `mobile-nav-pill ${isActive ? 'active' : ''}`}
+        >
+          <ShieldCheck size={13} />
+          <span>Safety & ESG</span>
+        </NavLink>
+      </nav>
     </header>
   );
 }

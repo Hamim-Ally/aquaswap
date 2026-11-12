@@ -68,8 +68,8 @@ export default function ESGCertificateModal({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Top Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-light)', paddingBottom: '16px' }}>
+        {/* Top Controls (Hidden on Print) */}
+        <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-light)', paddingBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span className="status-pill status-emerald">Official ESG Verification</span>
             <span className="mono" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>ID: {certNumber}</span>

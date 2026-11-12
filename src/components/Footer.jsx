@@ -1,62 +1,128 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Droplets } from 'lucide-react';
+import { Droplets, Sparkles } from 'lucide-react';
 
-export default function Footer({ onOpenESGCertificate, onOpenHowItWorks, onOpenSignIn }) {
-  return (
-    <footer
-      style={{
-        borderTop: '1px solid var(--border-light)',
-        padding: '36px 24px 28px 24px',
-        background: '#ffffff',
-        fontSize: '0.82rem',
-        color: '#64748b'
-      }}
-    >
-      <div
-        style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '24px'
-        }}
-      >
-        {/* Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#f0f9ff', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Droplets size={16} />
-          </div>
-          <span style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>
-            AquaSwap
-          </span>
-          <span style={{ color: '#cbd5e1', margin: '0 4px' }}>•</span>
-          <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
-            Industrial Water Reuse Marketplace
-          </span>
-        </div>
+  export default function Footer({ onOpenESGCertificate, onOpenHowItWorks, onOpenSignIn, onOpenSignUp }) {
+    return (
+              <footer className="site-footer">
+                <div className="footer-container">
+                  {/* Top Section: Brand + Navigation Columns */}
+                  <div className="footer-grid">
+                    {/* Column 1: Brand & Regional Network Mission */}
+                    <div className="footer-col-brand">
+                      <Link to="/" className="footer-brand-link">
+                        <div className="footer-brand-logo">
+                          <Droplets size={17} color="#0284c7" />
+                        </div>
+                        <span className="footer-brand-title">AquaSwap</span>
+                      </Link>
+                      <p className="footer-brand-desc">
+                        Algorithmic bilateral water exchange and industrial circular economy infrastructure for Bangladesh's manufacturing clusters.
+                      </p>
+                      <div className="footer-status-badge">
+                        <span className="status-dot-pulse" />
+                        <span>Dhaka-Gazipur Grid: <strong>Active</strong></span>
+                      </div>
+                    </div>
 
-        {/* Navigation Links */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-          <Link to="/optimizer" style={{ color: '#64748b', textDecoration: 'none' }}>Exchange Network</Link>
-          <Link to="/blender" style={{ color: '#64748b', textDecoration: 'none' }}>Water Blender</Link>
-          <Link to="/fleet" style={{ color: '#64748b', textDecoration: 'none' }}>Fleet Map</Link>
-          <Link to="/compliance" style={{ color: '#64748b', textDecoration: 'none' }}>Safety & ESG</Link>
-          <button
-            onClick={onOpenSignIn}
-            style={{ background: 'none', border: 'none', color: '#0284c7', cursor: 'pointer', padding: 0, fontSize: '0.82rem', fontWeight: 600 }}
-          >
-            Mock Login
-          </button>
-        </div>
+                    {/* Column 2: Core Platform Systems */}
+                    <div className="footer-col">
+                      <h4 className="footer-col-heading">Marketplace</h4>
+                      <ul className="footer-links-list">
+                        <li>
+                          <Link to="/optimizer">Exchange Network</Link>
+                        </li>
+                        <li>
+                          <Link to="/blender">Multi-Factory Blender</Link>
+                        </li>
+                        <li>
+                          <Link to="/fleet">Live Fleet Dispatch</Link>
+                        </li>
+                        <li>
+                          <Link to="/fleet">B2B Matchmaker</Link>
+                        </li>
+                      </ul>
+                    </div>
 
-        {/* Copyright */}
-        <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
-          © {new Date().getFullYear()} AquaSwap
-        </div>
-      </div>
-    </footer>
-  );
+                    {/* Column 3: Governance & Compliance */}
+                    <div className="footer-col">
+                      <h4 className="footer-col-heading">Governance & ESG</h4>
+                      <ul className="footer-links-list">
+                        <li>
+                          <Link to="/compliance">Water Purchase Agreement</Link>
+                        </li>
+                        <li>
+                          <button
+                            type="button"
+                            onClick={onOpenESGCertificate}
+                            className="footer-link-btn"
+                          >
+                            ESG Impact Certificate
+                          </button>
+                        </li>
+                        <li>
+                          <button
+                            type="button"
+                            onClick={onOpenHowItWorks}
+                            className="footer-link-btn"
+                          >
+                            System Guide
+                          </button>
+                        </li>
+                        <li>
+                          <Link to="/compliance">Safety Verification</Link>
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* Column 4: Factory Operations & Switcher */}
+                    <div className="footer-col">
+                      <h4 className="footer-col-heading">Factory Portal</h4>
+                      <ul className="footer-links-list">
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() => onOpenSignIn && onOpenSignIn('demo')}
+                            className="footer-link-btn highlight"
+                          >
+                            <Sparkles size={12} color="#0284c7" />
+                            <span>Switch Plant (16 Demo)</span>
+                          </button>
+                        </li>
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() => onOpenSignIn && onOpenSignIn('signin')}
+                            className="footer-link-btn"
+                          >
+                            Factory Sign In
+                          </button>
+                        </li>
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() => onOpenSignUp && onOpenSignUp()}
+                            className="footer-link-btn"
+                          >
+                            Register New Plant
+                          </button>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+
+                    {/* Bottom Bar: Copyright & Standards */}
+                    <div className="footer-bottom-bar">
+                      <div className="footer-copyright">
+                        © {new Date().getFullYear()} AquaSwap Technologies. Gazipur & Savar Textile Corridors.
+                      </div>
+                      <div className="footer-legal-badges">
+                        <span className="legal-pill">DoE 2023 Compliant</span>
+                        <span className="legal-pill">Zero Liquid Discharge (ZLD)</span>
+                        <span className="legal-pill">Bilateral Escrow</span>
+                      </div>
+                    </div>
+                  </div>
+              </footer>
+              );
 }

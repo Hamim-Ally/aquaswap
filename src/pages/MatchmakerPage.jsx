@@ -32,7 +32,7 @@ export default function MatchmakerPage({ cluster, onSelectMatchForWPA }) {
       </div>
 
       <div
-        className="ui-card"
+        className="ui-card page-main-card"
         style={{
           padding: '32px',
           background: 'var(--bg-card)',

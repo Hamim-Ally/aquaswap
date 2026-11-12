@@ -21,7 +21,7 @@ export default function HomePage({
   return (
     <div>
       {/* 1. Hero Section */}
-      <section style={{ background: '#ffffff', borderBottom: '1px solid var(--border-light)', padding: '56px 24px 48px 24px' }}>
+      <section className="hero-section" style={{ background: '#ffffff', borderBottom: '1px solid var(--border-light)', padding: '56px 24px 48px 24px' }}>
         <div style={{ maxWidth: '820px', margin: '0 auto', textAlign: 'center' }}>
           
           <h1 style={{ fontSize: '2.5rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em', lineHeight: 1.2, margin: 0 }}>
@@ -58,6 +58,7 @@ export default function HomePage({
         {/* Minimalist 4-Metric Grid */}
         <div style={{ maxWidth: '1000px', margin: '36px auto 0 auto' }}>
           <div
+            className="home-metric-grid"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',

@@ -50,50 +50,91 @@ export default function FleetPage({
         </Link>
       </div>
 
-      {/* 2. Page Hero Header */}
-      <div style={{ marginBottom: '20px' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-heading)', margin: 0 }}>
-          Live Fleet & Partner Directory
-        </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.86rem', marginTop: '4px', margin: '4px 0 0 0' }}>
-          Real-time GIS routing and bilateral B2B compatibility matches across {cluster.name}.
-        </p>
-      </div>
-
-      {/* 3. View Switcher Tabs */}
+      {/* 2. Page Hero Header & View Switcher (All in One Row) */}
       <div
+        className="mobile-stack"
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '6px',
-          marginBottom: '20px'
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '16px',
+          marginBottom: '24px'
         }}
       >
-        <button
-          className={`tab-pill ${activeTab === 'all' ? 'active' : ''}`}
-          onClick={() => setActiveTab('all')}
-          style={{ padding: '6px 14px', fontSize: '0.8rem' }}
-        >
-          <span>All Views</span>
-        </button>
+        <div style={{ minWidth: 0, flexShrink: 1 }}>
+          <h1 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-head, #0f172a)', margin: 0 }}>
+            Live Fleet & Partner Directory
+          </h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem', margin: '4px 0 0 0' }}>
+            Real-time GIS routing and bilateral B2B compatibility matches across {cluster.name}.
+          </p>
+        </div>
 
-        <button
-          className={`tab-pill ${activeTab === 'fleet' ? 'active' : ''}`}
-          onClick={() => setActiveTab('fleet')}
-          style={{ padding: '6px 14px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '5px' }}
+        {/* View Switcher Tabs */}
+        <div
+          className="mobile-scroll-row"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            background: '#f1f5f9',
+            borderRadius: '8px',
+            padding: '3px',
+            border: '1px solid var(--border-light)',
+            flexShrink: 0
+          }}
         >
-          <Truck size={14} color="#0284c7" />
-          <span>Fleet Map</span>
-        </button>
+          <button
+            className={`tab-pill ${activeTab === 'all' ? 'active' : ''}`}
+            onClick={() => setActiveTab('all')}
+            style={{
+              height: '32px',
+              padding: '0 12px',
+              fontSize: '0.78rem',
+              borderRadius: '6px',
+              boxSizing: 'border-box'
+            }}
+          >
+            <span>All Views</span>
+          </button>
 
-        <button
-          className={`tab-pill ${activeTab === 'matchmaker' ? 'active' : ''}`}
-          onClick={() => setActiveTab('matchmaker')}
-          style={{ padding: '6px 14px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '5px' }}
-        >
-          <Users2 size={14} color="#475569" />
-          <span>Matchmaker Directory</span>
-        </button>
+          <button
+            className={`tab-pill ${activeTab === 'fleet' ? 'active' : ''}`}
+            onClick={() => setActiveTab('fleet')}
+            style={{
+              height: '32px',
+              padding: '0 12px',
+              fontSize: '0.78rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              borderRadius: '6px',
+              boxSizing: 'border-box'
+            }}
+          >
+            <Truck size={14} color="#0284c7" />
+            <span>Fleet Map</span>
+          </button>
+
+          <button
+            className={`tab-pill ${activeTab === 'matchmaker' ? 'active' : ''}`}
+            onClick={() => setActiveTab('matchmaker')}
+            style={{
+              height: '32px',
+              padding: '0 12px',
+              fontSize: '0.78rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              borderRadius: '6px',
+              boxSizing: 'border-box'
+            }}
+          >
+            <Users2 size={14} color="#475569" />
+            <span>Matchmaker Directory</span>
+          </button>
+        </div>
       </div>
 
       {/* 4. Main Content Area */}
@@ -102,7 +143,7 @@ export default function FleetPage({
         {/* Module 1: Live GIS Network Map */}
         {(activeTab === 'all' || activeTab === 'fleet') && (
           <div
-            className="ui-card"
+            className="ui-card page-main-card"
             style={{
               padding: '28px',
               background: 'var(--bg-card)',
@@ -120,7 +161,7 @@ export default function FleetPage({
         {/* Module 2: Partner Matchmaker Directory */}
         {(activeTab === 'all' || activeTab === 'matchmaker') && (
           <div
-            className="ui-card"
+            className="ui-card page-main-card"
             style={{
               padding: '28px',
               background: 'var(--bg-card)',

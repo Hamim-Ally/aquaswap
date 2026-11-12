@@ -45,7 +45,7 @@ export default function ESGPage({ cluster, metrics, onOpenESGCertificate }) {
 
       {/* Main Certificate View */}
       <div
-        className="ui-card"
+        className="ui-card page-main-card"
         style={{
           padding: '36px',
           background: '#ffffff',
